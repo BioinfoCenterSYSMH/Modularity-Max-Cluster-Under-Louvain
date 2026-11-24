@@ -28,7 +28,21 @@ The input numbering fixes the vertex order. Each sweep visits units in increasin
 3. The finite set of integer score coefficient pairs gives a decreasing rank for sweeps that accept a move. Every contraction decreases the number of units. These facts prove termination of the uncapped execution. [Termination proof](Graph.lean)
 4. The full modularity objective and the local-gain rule give the same point choices, right-hand choices and adaptive intersections. Clearing the Jaccard denominators preserves choices on the original weights. [Gain identity](LocalGain.lean) · [Execution equivalence](Completeness.lean) · [Raw Jaccard semantics](RawJaccard.lean)
 
-For fixed `k`, Lean also verifies polynomial bounds on the score alphabet and the outer search budget. A tight runtime exponent and a bit-operation bound for a compiled R/C++ package remain outside the scope of these theorems. The project verifies the mathematical algorithm at source level in Lean. [Formal bounds](Jaccard.lean#L62)
+## The arithmetic operation bound
+
+For each fixed positive neighbor count $k$ there is a constant $C(k)$ independent of the graph, its pruning mask and the number of cells. The dense algorithm enumerates, deduplicates and scores every reachable partition and collects all ties for highest classical modularity in at most $C(k)n^{14}$ charged operations for $n>0$.
+
+```lean
+theorem Louvain.Metered.arithmetic_n14 (k : ℕ) (hk : 0 < k) :
+    ∃ C : ℕ, ∀ n (S : SNN n k), 0 < n →
+      (Louvain.Metered.enumerateAndScore S).steps ≤ C * n^14
+```
+
+- The counted input comprises the neighbor sets and symmetric pruning mask. The arithmetic RAM charges table construction once and counts subsequent random accesses and exact scalar arithmetic at unit cost. Straight-line kernels carry explicit constant charges. [Cost semantics](MeteredTables.lean) · [Input and program](JaccardProgram.lean)
+- The crossing count is $O(n^6)$. Following an exact point or its right limit costs $O(n^8)$, including sweeps, label changes and level preparation. Deduplication, scoring and collecting all maximizers together cost $O(n^{13})$. [Crossings](BreakpointCount.lean) · [Metered scan](MeteredScan.lean) · [Composition](ArithmeticBound.lean)
+- `scores_raw_exact` characterizes every scored row by reachability and classical modularity on the original unscaled Jaccard graph. `distinct_scores` proves that a partition appears only once. `best_exact` characterizes every row tied for highest score. Classical modularity has its usual interpretation for positive total edge weight. [Scored rows](ScoredPath.lean) · [Maximizers](JaccardProgram.lean)
+
+固定近邻数后，$O(n^{14})$ 是上述数学算法的保守最坏情形上界。Lean 验证了算术模型中的运算次数。实际 R/C++ 使用稀疏结构，其结果通过示例单独检验。位运算复杂度的完整形式化仍是独立问题。
 
 ## Reproduce the check
 
@@ -39,8 +53,12 @@ lake update
 lake exe cache get
 lake build
 lake env lean -DwarningAsError=true RawJaccard.lean
+lake env lean -DwarningAsError=true ArithmeticBound.lean
+lake env lean -DwarningAsError=true ScoredPath.lean
 ```
 
-The final command prints the axiom dependencies of the main completeness and uniqueness theorems. Both use only `propext`, `Classical.choice` and `Quot.sound`.
+The three source checks print the axiom dependencies of the main completeness, uniqueness, arithmetic-bound and scoring results. They use only `propext`, `Classical.choice` and `Quot.sound`.
+
+Run `lake env lean --run ScoredExample.lean` to verify both reachable partitions of a two-cell graph, their hand-computed scores $0$ and $-1/2$, and the unique winner. [Scoring example](ScoredExample.lean)
 
 A six-cell example exercises the critical resolution `108/95`. Run it with `lake env lean --run Example.lean`. [Example](Example.lean)

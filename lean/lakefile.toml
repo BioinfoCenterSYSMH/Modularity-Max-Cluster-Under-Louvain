@@ -1,5 +1,5 @@
 name = "Louvian_Modularity_Max"
-version = "0.1.0"
+version = "0.2.0"
 defaultTargets = ["LouvainProof"]
 
 [[require]]
@@ -9,4 +9,4 @@ rev = "v4.19.0"
 
 [[lean_lib]]
 name = "LouvainProof"
-roots = ["Path", "Enumeration", "Graph", "Jaccard", "LocalGain", "Completeness", "RawJaccard"]
+roots = ["Path", "Enumeration", "Graph", "Jaccard", "LocalGain", "Completeness", "RawJaccard", "BreakpointCount", "VisitCount", "CandidateCount", "LinearMenu", "DenseMenu", "Decisions", "MeteredTables", "MeteredDecision", "MeteredControl", "MeteredLevels", "MeteredScan", "MeteredScores", "JaccardProgram", "ArithmeticBound", "ScoredPath"]
