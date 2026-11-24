@@ -5,15 +5,15 @@
 **Manuscript in preparation. Please contact the author before citing this work.**  
 **论文正在写作中。引用本工作前，请先联系作者。** [Contact the author · 联系作者](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues/new)
 
-**如果唯一目标是在 Louvain 能返回的分群中取得最高经典模块度 $Q$，那么，对本文定义的确定性 Louvain 算法，在分辨率以外的条件全部固定后，人工调节分辨率的时代就彻底结束了。** 无论手动选哪个非负分辨率，它给出的划分都已包含在枚举结果中。直接比较这些划分的经典模块度，就能找出全部并列最优方案。
+**如果唯一目标是在 Louvain 能返回的分群中取得最高经典模块度 $Q$，那么，对本文定义的确定性 Louvain 算法，在分辨率以外的条件全部固定后，人工调节分辨率的时代就彻底结束了。** 无论手动选哪个非负分辨率，它给出的划分都已包含在枚举结果中。直接比较这些划分的经典模块度，就能找出全部并列最优方案。对近邻数 $k$ 固定、总边权为正的 Jaccard SNN 图，我们已用 Lean 形式证明枚举无遗漏，并验证了多项式搜索上界。结合下文的运算计数，可得 **“给定有理阈值 $q$，是否存在某个非负分辨率，使 Louvain 返回的划分满足经典模块度 $Q\ge q$？”这一判定问题属于 P。**
 
-**For the deterministic Louvain algorithm defined here, the era of manual resolution tuning is over when all other conditions are fixed and the sole objective is to maximize classical modularity $Q$ among the partitions Louvain can return.** Every partition obtainable by choosing a nonnegative resolution by hand is already in the enumeration. Comparing their classical modularity scores identifies every maximizer.
+**For the deterministic Louvain algorithm defined here, the era of manual resolution tuning is over when all other conditions are fixed and the sole objective is to maximize classical modularity $Q$ among the partitions Louvain can return.** Every partition obtainable by choosing a nonnegative resolution by hand is already in the enumeration. Comparing their classical modularity scores identifies every maximizer. For Jaccard SNN graphs with fixed neighbor count $k$ and positive total edge weight, our Lean proof establishes completeness and polynomial bounds on the search. Together with the operation count below, this gives a precise complexity result. **Given a rational threshold $q$, deciding whether any nonnegative resolution returns a partition with classical modularity $Q\ge q$ is in P.**
 
 ## What the package computes · 这个包计算什么
 
-For a fixed shared nearest-neighbor (SNN) graph and fixed Louvain rules, which partition has the highest classical modularity among all partitions that the algorithm can return? `SUNLouvainPath` enumerates the distinct final partitions across **all nonnegative real resolutions**, including outputs attained only at a single boundary. It evaluates each partition with the same classical Newman–Girvan modularity $Q$ (scoring resolution 1) and reports every maximizer. If the earliest maximizing interval has an open left endpoint and the endpoint itself does not attain the maximum, the package returns its infimum and an attainable example resolution.
+On a fixed-$k$ Jaccard shared nearest-neighbor (SNN) graph with $n$ cells, `SUNLouvainPath` uses a **polynomial-time algorithm** to enumerate every final partition the specified deterministic Louvain procedure can return across all nonnegative real resolutions, including partitions attained at a single endpoint. A conservative worst-case bound for a local-gain implementation is **$O(n^{14})$ exact arithmetic operations**. The package ranks the partitions by classical Newman–Girvan modularity (scoring resolution 1) and reports all maximizers. It returns the earliest maximizing resolution when attained, or the infimum and an attainable representative when the first maximizing interval is open on the left. [How the bound is obtained](#complexity)
 
-给定一张 SNN 图，固定细胞顺序、移动和平局规则后，Louvain 在不同分辨率下能给出哪些划分？其中哪种划分的经典模块度最高？本包枚举全部非负分辨率下该算法可以返回的分群，包括只在单个端点出现的分群。每个方案均按同一个经典模块度评分。推荐结果给出达到最高分的最小分辨率；如果只有下确界，则另给出一个能实际取得最高分的分辨率和对应划分。
+给定 $n$ 个细胞构成的 Jaccard SNN 图，近邻数 $k$ 固定，细胞顺序、移动和平局规则也固定。**我们的算法能在多项式时间内枚举 Louvain 在全部非负分辨率下可返回的最终划分，包括只在单个临界点出现的划分。** 按局部增益实现计算，一个保守的最坏情形上界为 **$O(n^{14})$ 次精确算术运算**。本包逐一计算各方案的经典模块度，列出全部最高分方案，并给出达到最高分的最小分辨率。如果最早的最高分区间为左开区间，则给出下确界和一个能实际取得最高分的分辨率。[复杂度推导](#complexity)
 
 ## Install · 安装
 
@@ -75,6 +75,18 @@ Use the neighbor count used to construct your graph. Cell order and tie rules ar
 The main Lean theorem equates membership in the finite enumerated set with being the final output of the specified Louvain procedure at some real resolution $r\geq 0$. For Jaccard SNN graphs with fixed neighbor count $k$, the formal development also bounds the search budgets polynomially in the number of cells. The code and documentation distinguish the mathematical proof from tests of the R/C++ implementation.
 
 Lean 主定理证明了枚举结果与所有非负实数分辨率下的可达终态完全一致，并覆盖仅在临界点出现的分群。固定近邻数的 Jaccard SNN 图满足已形式化的多项式搜索上界。R 包可用上面的两个示例直接核验。[Proof and build instructions · 证明与构建说明](lean/) · [Main theorem · 主定理](lean/RawJaccard.lean#L153) · [Download proof · 下载证明包](downloads/Louvain_Lean_proof.zip)
+
+## Complexity
+
+固定 $k$ 后，为什么能得到 $O(n^{14})$？下述计数针对使用局部增益、维护群体加权度并逐边累加连边权重的算法。设 $T$ 为清除 Jaccard 权重分母后的加权度总和。每条边的整数权重有一个只依赖 $k$ 的上界，所以 $T=O(n^2)$。一个划分在分辨率 $r$ 处的目标值乘以公共因子后可以写为 $Ta-rb$，其中 $a$ 是群内边权总和（每条无向边按两个方向计），$b$ 是各群加权度总和的平方和，即 $b=\sum_C \mathrm{vol}(C)^2$。整数系数满足 $0\le a\le T$ 和 $0\le b\le T^2$。[Lean 中的目标函数](lean/Graph.lean#L29-L38) · [Jaccard 权重与搜索上界](lean/Jaccard.lean#L56-L77)
+
+1. **最多 $O(n^6)$ 个临界点。** 两种候选移动得分线的孤立交点位于 $r=T\Delta a/\Delta b$，其中 $\Delta b\ne0$。固定输入图后 $T$ 是常数，可能出现的整数差值对至多有 $(2T+1)(2T^2+1)$ 种。从零开始，每轮分别检查当前点及其右侧紧邻区间，然后前进到下一个临界点。
+2. **每次运行至多 $O(n^6)$ 轮扫描。** 整个分群过程至多有 $(T+1)(T^2+1)$ 种目标系数对 $(a,b)$。每次接受移动都严格提高目标值，收缩时保留原划分的系数。右极限遇到同分时按斜率排序，同样严格前进。故跨越全部层级，也只能有这么多次严格改进。每层至多再做一轮无移动扫描，层数至多为 $n$。[移动规则](lean/Graph.lean#L78) · [收缩规则](lean/Graph.lean#L176)
+3. **每轮 $O(n^2)$ 次算术运算。** 逐节点累加邻边并比较相邻候选群，每轮最多处理 $O(n^2)$ 个邻接项。三项相乘给出 $O(n^6\cdot n^6\cdot n^2)=O(n^{14})$。每个不同输出再用 $O(n^2)$ 次运算计算经典模块度即可。固定 $k$ 时，这些整数和临界分数的分子、分母都只有 $O(\log(n+1))$ 位。与以二进制输入的有理阈值 $q$ 作精确比较，其位运算代价也是输入长度的多项式。
+
+For fixed $k$, scaling the weights to integers gives total weighted degree $T=O(n^2)$. Each partition has a scaled objective $Ta-rb$ with integer coefficients $0\le a\le T$ and $0\le b\le T^2$. There are $O(T^3)$ possible critical resolutions because each is determined by the two integer differences in $T\Delta a/\Delta b$. At each boundary the algorithm traces both the point and its right-hand limit. Each trace makes at most $O(T^3)$ improving moves across all levels, since the score strictly increases among the available coefficient pairs and contraction preserves the score. The same argument holds on the right using slope to break score ties. Each level adds at most one unchanged sweep. Scanning adjacency entries and candidate communities takes $O(n^2)$ arithmetic operations per sweep. The resulting $O(n^{14})$ worst-case arithmetic bound includes scoring the outputs. Intermediate integers have $O(\log(n+1))$ bits, and the final comparison with the binary-encoded rational threshold takes polynomial bit time.
+
+Lean 直接验证了枚举的完备性和多项式搜索上界。上面的运算计数进一步推出判定问题属于 P，并给出保守的具体指数。现有 Lean 项目尚未形式化端到端位运算成本。Lean verifies completeness and polynomial search bounds. The operation count above supplies the exponent and the bit-complexity argument for P membership. An end-to-end bit-cost theorem is outside the current Lean formalization. [Lean 主定理 · Main theorem](lean/RawJaccard.lean#L153)
 
 ## Downloads and licenses · 下载与许可
 
