@@ -11,9 +11,6 @@ Junbo Wang and Jianyou Liao developed this project with assistance from GPT-6.2 
 
 - 王俊博 (Junbo Wang) · [1124315977@qq.com](mailto:1124315977@qq.com)
 - 廖建友 (Jianyou Liao) · [liaojy3@mail.sysu.edu.cn](mailto:liaojy3@mail.sysu.edu.cn)
-- 杨海弟
-- 梁茂金
-- 郑亿庆
 
 [GitHub Issues · 项目讨论](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues/new)
 
