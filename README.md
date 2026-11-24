@@ -15,6 +15,24 @@ On a fixed-$k$ Jaccard shared nearest-neighbor (SNN) graph with $n$ cells, `SUNL
 
 给定 $n$ 个细胞构成的 Jaccard SNN 图，近邻数 $k$ 固定，细胞顺序、移动和平局规则也固定。**我们的算法能在多项式时间内枚举 Louvain 在全部非负分辨率下可返回的最终划分，包括只在单个临界点出现的划分。** 按局部增益实现计算，一个保守的最坏情形上界为 **$O(n^{14})$ 次精确算术运算**。本包逐一计算各方案的经典模块度，列出全部最高分方案，并给出达到最高分的最小分辨率。如果最早的最高分区间为左开区间，则给出下确界和一个能实际取得最高分的分辨率。[复杂度推导](#complexity)
 
+本包的评分和搜索分别有其来源。Newman 与 Girvan 定义了评价划分的经典模块度；Reichardt 与 Bornholdt 研究了带分辨率参数的目标，在保持节点期望度的零模型下取 $r=1$ 即对应经典模块度。Blondel 等提出 Louvain，通过局部移动和群收缩寻找高模块度划分。
+
+We use the classical Newman–Girvan score to rank outputs, the Reichardt–Bornholdt resolution parameter to vary the objective during search, and Blondel et al.’s multilevel Louvain procedure as the starting point. [Newman & Girvan, 2004](https://doi.org/10.1103/PhysRevE.69.026113) · [Reichardt & Bornholdt, 2006](https://doi.org/10.1103/PhysRevE.74.016110) · [Blondel et al., 2008](https://doi.org/10.1088/1742-5468/2008/10/P10008)
+
+## Why we follow the greedy comparisons · 单参数贪心算法给我们的启示
+
+Gupta 与 Roughgarden（2017）给了我们一个出发点：在他们研究的一类单参数贪心算法中，参数虽然连续，只要每一步候选项的得分排序保持不变，整次运行就会作出相同选择。§3.3.3 说明，当每个对象可能出现的属性值个数、每对得分曲线的交点数和单次运行时间都有多项式上界，且相关比较和交点可以高效求出时，在给定样本上选出表现最好的参数可以在多项式时间内完成。§3.3.4 还讨论了这一思路向局部搜索的扩展。[Gupta & Roughgarden, *A PAC Approach to Application-Specific Algorithm Selection*, SIAM Journal on Computing](https://doi.org/10.1137/15M1050276) · [§§3.3.3–3.3.4 原文，第 1001 页](https://theory.stanford.edu/~tim/papers/features.pdf#page=10)
+
+Gupta and Roughgarden showed how to optimize a parameter over a sample for a class of single-parameter greedy heuristics. The trajectory stays fixed while all relevant score comparisons have the same outcome. Their polynomial-time result requires polynomial bounds on the number of attainable attribute values per object, the crossings per score pair and the time per run, together with efficient identification of comparisons and computation of crossings.
+
+Balcan、Dick 与 Lang（2020）在层次聚类中给出了具体先例。他们用执行树记录各参数区间的合并序列，在叶节点评价所得聚类。
+
+Their *Learning to Link* enumerates the merge sequences of a linkage family on a fixed input and evaluates the loss at each leaf. [Balcan, Dick & Lang, *Learning to Link*, ICLR 2020](https://iclr.cc/virtual_2020/poster_S1eRbANtDB.html) · [§4 and Algorithms 2–3](https://www.cs.cmu.edu/~ninamf/papers/learn-link.pdf)
+
+**我们从中借鉴的是追踪比较交点的思路。** 对 Louvain，要追踪的是“当前节点移入哪个相邻群的增益最大”。代码分别检查增益相等的分辨率本身及其右侧，并在每次群收缩后继续追踪。本文为固定 $k$ 的 Jaccard SNN 图证明了这套具体规则覆盖所有可达划分，给出了相应的多项式界。
+
+**Our Louvain result** follows the crossings of candidate move gains, checks ties at the boundary itself, and follows the choices through contraction. The completeness proof and the fixed-$k$ polynomial bound for this procedure are developed here. [Lean 主定理 · Louvain completeness theorem](lean/RawJaccard.lean#L153) · [Complexity](#complexity)
+
 ## Install · 安装
 
 With R 4.6.x on 64-bit x86 Windows, run the following in R. 在 64 位 x86 Windows 的 R 4.6.x 中可直接运行以下代码安装二进制包。
@@ -78,6 +96,10 @@ Lean 主定理证明了枚举结果与所有非负实数分辨率下的可达终
 
 ## Complexity
 
+Brandes 等证明，在一般图的全部划分中，判定是否存在经典模块度达到给定阈值的划分是强 NP 完全问题。本文的 P 结论限定在固定 $k$ 的 Jaccard SNN 图上，对指定 Louvain 只改变分辨率所能返回的划分进行判定。
+
+Brandes et al. proved strong NP-completeness of the unrestricted modularity threshold problem. Our decision problem ranges over the outputs reachable by the specified Louvain procedure on the fixed-$k$ graph family. [Brandes et al., *On Modularity Clustering*, 2008](https://doi.org/10.1109/TKDE.2007.190689) · [Theorem 4.4, author copy](https://www.algo.rwth-aachen.de/team/hoefer/papers/Brandes07ModularityJ.pdf)
+
 固定 $k$ 后，为什么能得到 $O(n^{14})$？下述计数针对使用局部增益、维护群体加权度并逐边累加连边权重的算法。设 $T$ 为清除 Jaccard 权重分母后的加权度总和。每条边的整数权重有一个只依赖 $k$ 的上界，所以 $T=O(n^2)$。一个划分在分辨率 $r$ 处的目标值乘以公共因子后可以写为 $Ta-rb$，其中 $a$ 是群内边权总和（每条无向边按两个方向计），$b$ 是各群加权度总和的平方和，即 $b=\sum_C \mathrm{vol}(C)^2$。整数系数满足 $0\le a\le T$ 和 $0\le b\le T^2$。[Lean 中的目标函数](lean/Graph.lean#L29-L38) · [Jaccard 权重与搜索上界](lean/Jaccard.lean#L56-L77)
 
 1. **最多 $O(n^6)$ 个临界点。** 两种候选移动得分线的孤立交点位于 $r=T\Delta a/\Delta b$，其中 $\Delta b\ne0$。固定输入图后 $T$ 是常数，可能出现的整数差值对至多有 $(2T+1)(2T^2+1)$ 种。从零开始，每轮分别检查当前点及其右侧紧邻区间，然后前进到下一个临界点。
@@ -87,6 +109,12 @@ Lean 主定理证明了枚举结果与所有非负实数分辨率下的可达终
 For fixed $k$, scaling the weights to integers gives total weighted degree $T=O(n^2)$. Each partition has a scaled objective $Ta-rb$ with integer coefficients $0\le a\le T$ and $0\le b\le T^2$. There are $O(T^3)$ possible critical resolutions because each is determined by the two integer differences in $T\Delta a/\Delta b$. At each boundary the algorithm traces both the point and its right-hand limit. Each trace makes at most $O(T^3)$ improving moves across all levels, since the score strictly increases among the available coefficient pairs and contraction preserves the score. The same argument holds on the right using slope to break score ties. Each level adds at most one unchanged sweep. Scanning adjacency entries and candidate communities takes $O(n^2)$ arithmetic operations per sweep. The resulting $O(n^{14})$ worst-case arithmetic bound includes scoring the outputs. Intermediate integers have $O(\log(n+1))$ bits, and the final comparison with the binary-encoded rational threshold takes polynomial bit time.
 
 Lean 直接验证了枚举的完备性和多项式搜索上界。上面的运算计数进一步推出判定问题属于 P，并给出保守的具体指数。现有 Lean 项目尚未形式化端到端位运算成本。Lean verifies completeness and polynomial search bounds. The operation count above supplies the exponent and the bit-complexity argument for P membership. An end-to-end bit-cost theorem is outside the current Lean formalization. [Lean 主定理 · Main theorem](lean/RawJaccard.lean#L153)
+
+## Related resolution searches · 相关的分辨率搜索方法
+
+Bettinelli 等（2012）给出了追踪参数化模块度全局最优解的精确方法。Weir 等（2017）的 CHAMP 以给定的候选划分为输入，找出每个候选在哪些参数范围内取得最高分。Arimiyaw 等（2026）则在实际应用中对 0.5 至 1.5 的 11 个 Louvain 分辨率逐点评分（表 2）。本文所枚举的集合由另一个问题定义：给定这张图和确定性运行规则，哪些划分确实能在某个分辨率被返回？
+
+Bettinelli et al. traced global optima of a parametric modularity objective. CHAMP compared an input set of partitions across parameter values. Arimiyaw et al. reported Louvain results on an eleven-point resolution grid. Our enumeration follows the final partitions returned by a specified run as resolution varies continuously. [Bettinelli, Hansen & Liberti, 2012](https://doi.org/10.1103/PhysRevE.86.016107) · [Weir et al., CHAMP, 2017](https://doi.org/10.3390/a10030093) · [Arimiyaw et al., 2026, Table 2](https://doi.org/10.1016/j.tust.2026.107708)
 
 ## Downloads and licenses · 下载与许可
 
