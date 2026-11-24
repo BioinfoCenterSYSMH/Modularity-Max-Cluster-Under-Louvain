@@ -7,7 +7,7 @@ Authors@R: c(
            email = "99457639+SYSUWangJunbo@users.noreply.github.com",
            comment = "王俊博"),
     person("Jianyou", "Liao", role = "aut", comment = "廖建友"),
-    person("GPT-6.2 Astra", role = "aut", comment = "AI co-developer"))
+    person("GPT-6.2 Astra", role = "ctb", comment = "Development assistance"))
 Description: Follows exact comparisons in a deterministic multilevel Louvain
     algorithm across all nonnegative resolutions. Stores distinct partitions
     and their resolution intervals in a Seurat object's tools slot. Ranks the

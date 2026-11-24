@@ -1,6 +1,8 @@
 # Exact Louvain resolution path in Lean 4
 
-**共同开发者 · Developers**　王俊博 (Junbo Wang)、廖建友 (Jianyou Liao)、GPT-6.2 Astra (AI)。
+本项目由王俊博、廖建友共同开发，开发过程中使用了 GPT-6.2 Astra 辅助。
+
+Junbo Wang and Jianyou Liao developed this project with assistance from GPT-6.2 Astra.
 
 **Manuscript in preparation. Please contact the author before citing this work.**
 
