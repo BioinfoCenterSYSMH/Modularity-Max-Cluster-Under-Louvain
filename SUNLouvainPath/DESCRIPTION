@@ -1,0 +1,24 @@
+Package: SUNLouvainPath
+Type: Package
+Title: Enumerate Deterministic Louvain Partitions on Seurat Graphs
+Version: 0.2.1
+Authors@R: c(
+    person("Junbo", "Wang", role = c("aut", "cre"),
+           email = "99457639+SYSUWangJunbo@users.noreply.github.com",
+           comment = "王俊博"),
+    person("Jianyou", "Liao", role = "aut", comment = "廖建友"),
+    person("GPT-6.2 Astra", role = "aut", comment = "AI co-developer"))
+Description: Follows exact comparisons in a deterministic multilevel Louvain
+    algorithm across all nonnegative resolutions. Stores distinct partitions
+    and their resolution intervals in a Seurat object's tools slot. Ranks the
+    final partitions by classical Newman-Girvan modularity and reports
+    the earliest resolution attaining its maximum when a minimum exists.
+License: GPL-3
+URL: https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain
+BugReports: https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues
+Encoding: UTF-8
+Depends: R (>= 4.2.0)
+Imports: Matrix, Rcpp, SeuratObject (>= 4.1.0)
+LinkingTo: BH, Rcpp
+Suggests: Seurat
+SystemRequirements: C++17

@@ -1,0 +1,4 @@
+useDynLib(SUNLouvainPath, .registration=TRUE)
+importFrom(Rcpp,evalCpp)
+export(EnumerateLouvain)
+export(VerifyLouvainExample)
