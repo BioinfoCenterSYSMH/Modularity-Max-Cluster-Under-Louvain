@@ -2,8 +2,15 @@
 
 **共同开发者 · Developers**　王俊博 (Junbo Wang)、廖建友 (Jianyou Liao)、GPT-6.2 Astra (AI)。
 
-**Manuscript in preparation. Please contact the author before citing this work.**  
-**论文正在写作中。引用本工作前，请先联系作者。** [Contact the author · 联系作者](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues/new)
+**Manuscript in preparation. Please contact the authors before citing this work.**  
+**论文正在写作中。引用本工作前，请先联系作者。**
+
+**Contact the authors · 联系作者**
+
+- 王俊博 (Junbo Wang) · [1124315977@qq.com](mailto:1124315977@qq.com)
+- 廖建友 (Jianyou Liao) · [liaojy3@mail.sysu.edu.cn](mailto:liaojy3@mail.sysu.edu.cn)
+
+[GitHub Issues · 项目讨论](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues/new)
 
 **如果唯一目标是在 Louvain 能返回的分群中取得最高经典模块度 $Q$，那么，对本文定义的确定性 Louvain 算法，在分辨率以外的条件全部固定后，人工调节分辨率的时代就彻底结束了。** 无论手动选哪个非负分辨率，它给出的划分都已包含在一个多项式算法的枚举结果中。直接比较这些划分的经典模块度，就能找出全部并列最优方案。对近邻数 $k$ 固定、总边权为正的 Jaccard SNN 图，我们已用 Lean 形式证明枚举无遗漏，并验证了多项式搜索上界。结合下文的运算计数，可得 **“给定有理阈值 $q$，是否存在某个非负分辨率，使 Louvain 返回的划分满足经典模块度 $Q\ge q$？”这一判定问题属于 P。**
 
