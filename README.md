@@ -5,6 +5,10 @@
 **Manuscript in preparation. Please contact the author before citing this work.**  
 **论文正在写作中。引用本工作前，请先联系作者。** [Contact the author · 联系作者](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues/new)
 
+**如果唯一目标是在 Louvain 能返回的分群中取得最高经典模块度 $Q$，那么，对本文定义的确定性 Louvain 算法，在分辨率以外的条件全部固定后，人工调节分辨率的时代就彻底结束了。** 无论手动选哪个非负分辨率，它给出的划分都已包含在枚举结果中。直接比较这些划分的经典模块度，就能找出全部并列最优方案。
+
+**For the deterministic Louvain algorithm defined here, the era of manual resolution tuning is over when all other conditions are fixed and the sole objective is to maximize classical modularity $Q$ among the partitions Louvain can return.** Every partition obtainable by choosing a nonnegative resolution by hand is already in the enumeration. Comparing their classical modularity scores identifies every maximizer.
+
 ## What the package computes · 这个包计算什么
 
 For a fixed shared nearest-neighbor (SNN) graph and fixed Louvain rules, which partition has the highest classical modularity among all partitions that the algorithm can return? `SUNLouvainPath` enumerates the distinct final partitions across **all nonnegative real resolutions**, including outputs attained only at a single boundary. It evaluates each partition with the same classical Newman–Girvan modularity $Q$ (scoring resolution 1) and reports every maximizer. If the earliest maximizing interval has an open left endpoint and the endpoint itself does not attain the maximum, the package returns its infimum and an attainable example resolution.
