@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" aria-labelledby="figure-title figure-desc" width="1320" height="665" viewBox="0 0 1320 665" role="img">
+  <title id="figure-title">Modularity gain for each destination of A as resolution increases</title>
+  <desc id="figure-desc">At resolution zero, B and C tie. C has the greatest gain between zero and one. C and D tie at one; D has the greatest gain between one and two. D and staying tie at two. Staying has the greatest gain above two. Dashed vertical guides mark these three resolution values.</desc>
+  <rect width="1320" height="665" fill="white" />
+  <defs>
+    <clipPath id="plot-clip">
+      <rect x="83" y="90" width="793" height="473" />
+    </clipPath>
+  </defs>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#26343B">
+    <text x="84.000" y="49.000" font-size="24" font-weight="600">Modularity gain</text>
+    <text x="265.000" y="49.000" font-size="24">ΔQ<tspan baseline-shift="sub" font-size="16">r</tspan>
+    </text>
+    <line x1="84.000" y1="524.816" x2="875.000" y2="524.816" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="524.816" x2="84.000" y2="524.816" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="530.816" font-size="17" text-anchor="end" fill="#506269">−0.15</text>
+    <line x1="84.000" y1="462.842" x2="875.000" y2="462.842" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="462.842" x2="84.000" y2="462.842" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="468.842" font-size="17" text-anchor="end" fill="#506269">−0.10</text>
+    <line x1="84.000" y1="400.868" x2="875.000" y2="400.868" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="400.868" x2="84.000" y2="400.868" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="406.868" font-size="17" text-anchor="end" fill="#506269">−0.05</text>
+    <line x1="84.000" y1="338.895" x2="875.000" y2="338.895" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="338.895" x2="84.000" y2="338.895" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="344.895" font-size="17" text-anchor="end" fill="#506269">0</text>
+    <line x1="84.000" y1="276.921" x2="875.000" y2="276.921" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="276.921" x2="84.000" y2="276.921" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="282.921" font-size="17" text-anchor="end" fill="#506269">0.05</text>
+    <line x1="84.000" y1="214.947" x2="875.000" y2="214.947" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="214.947" x2="84.000" y2="214.947" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="220.947" font-size="17" text-anchor="end" fill="#506269">0.10</text>
+    <line x1="84.000" y1="152.974" x2="875.000" y2="152.974" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="152.974" x2="84.000" y2="152.974" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="158.974" font-size="17" text-anchor="end" fill="#506269">0.15</text>
+    <line x1="84.000" y1="91.000" x2="875.000" y2="91.000" stroke="#DDE4E6" stroke-width="1.3" />
+    <line x1="78.000" y1="91.000" x2="84.000" y2="91.000" stroke="#8B9BA2" stroke-width="1.3" />
+    <text x="70.000" y="97.000" font-size="17" text-anchor="end" fill="#506269">0.20</text>
+    <line x1="84.000" y1="91.000" x2="84.000" y2="562.000" stroke="#93A4AA" stroke-width="1.5" />
+    <line x1="84.000" y1="562.000" x2="875.000" y2="562.000" stroke="#93A4AA" stroke-width="1.5" />
+    <line x1="84.000" y1="562.000" x2="84.000" y2="568.000" stroke="#7B8D94" stroke-width="1.5" />
+    <text x="84.000" y="593.000" font-size="19" text-anchor="middle" font-weight="600" fill="#34464F">0</text>
+    <line x1="253.742" y1="562.000" x2="253.742" y2="568.000" stroke="#7B8D94" stroke-width="1.5" />
+    <text x="253.742" y="593.000" font-size="19" text-anchor="middle" font-weight="400" fill="#34464F">0.5</text>
+    <line x1="423.485" y1="562.000" x2="423.485" y2="568.000" stroke="#7B8D94" stroke-width="1.5" />
+    <text x="423.485" y="593.000" font-size="19" text-anchor="middle" font-weight="600" fill="#34464F">1</text>
+    <line x1="593.227" y1="562.000" x2="593.227" y2="568.000" stroke="#7B8D94" stroke-width="1.5" />
+    <text x="593.227" y="593.000" font-size="19" text-anchor="middle" font-weight="400" fill="#34464F">1.5</text>
+    <line x1="762.970" y1="562.000" x2="762.970" y2="568.000" stroke="#7B8D94" stroke-width="1.5" />
+    <text x="762.970" y="593.000" font-size="19" text-anchor="middle" font-weight="600" fill="#34464F">2</text>
+    <text x="479.500" y="638.000" font-size="22" text-anchor="middle">Resolution r</text>
+    <g clip-path="url(#plot-clip)">
+      <line x1="84.000" y1="121.987" x2="84.000" y2="562.000" stroke="#526D7B" stroke-width="2.1" stroke-dasharray="7 6" />
+      <line x1="423.485" y1="276.921" x2="423.485" y2="562.000" stroke="#526D7B" stroke-width="2.1" stroke-dasharray="7 6" />
+      <line x1="762.970" y1="338.895" x2="762.970" y2="562.000" stroke="#526D7B" stroke-width="2.1" stroke-dasharray="7 6" />
+      <polyline points="84.000,121.987 423.485,276.921 762.970,338.895 875.000,338.895" fill="none" stroke="#F8D853" stroke-width="12" stroke-linejoin="round" stroke-linecap="butt" />
+      <line x1="84.000" y1="121.987" x2="875.000" y2="555.183" stroke="#943E80" stroke-width="3.7" />
+      <line x1="84.000" y1="121.987" x2="875.000" y2="482.984" stroke="#176B9F" stroke-width="3.7" />
+      <line x1="84.000" y1="214.947" x2="875.000" y2="359.346" stroke="#B65315" stroke-width="3.7" />
+      <line x1="84.000" y1="276.921" x2="875.000" y2="421.320" stroke="#087969" stroke-width="3.7" />
+      <line x1="84.000" y1="338.895" x2="875.000" y2="338.895" stroke="#485963" stroke-width="3.7" stroke-dasharray="11 7" />
+    </g>
+    <line x1="84.000" y1="121.987" x2="144.000" y2="115.000" stroke="#718791" stroke-width="1.6" />
+    <circle cx="84.000" cy="121.987" r="5.6" fill="#FFFFFF" stroke="#344A54" stroke-width="2.8" />
+    <text x="153.000" y="119.000" font-size="17.5" fill="#304650" font-weight="500">B and C tie</text>
+    <line x1="423.485" y1="276.921" x2="473.000" y2="240.000" stroke="#718791" stroke-width="1.6" />
+    <circle cx="423.485" cy="276.921" r="5.6" fill="#FFFFFF" stroke="#344A54" stroke-width="2.8" />
+    <text x="479.000" y="238.000" font-size="17.5" fill="#304650" font-weight="500">C and D tie</text>
+    <line x1="762.970" y1="338.895" x2="710.000" y2="301.000" stroke="#718791" stroke-width="1.6" />
+    <circle cx="762.970" cy="338.895" r="5.6" fill="#FFFFFF" stroke="#344A54" stroke-width="2.8" />
+    <text x="596.000" y="293.000" font-size="17.5" fill="#304650" font-weight="500">D and staying tie</text>
+    <text x="925.000" y="69.000" font-size="25" font-weight="bold">Destinations of A</text>
+    <line x1="925.000" y1="118.000" x2="969.000" y2="118.000" stroke="#943E80" stroke-width="4.1" />
+    <text x="984.000" y="124.000" font-size="22" font-weight="500">A joins B</text>
+    <text x="984.000" y="154.000" font-size="20">ΔQ<tspan baseline-shift="sub" font-size="14">r</tspan> = 0.175 − 0.15r</text>
+    <line x1="925.000" y1="201.000" x2="969.000" y2="201.000" stroke="#176B9F" stroke-width="4.1" />
+    <text x="984.000" y="207.000" font-size="22" font-weight="500">A joins C</text>
+    <text x="984.000" y="237.000" font-size="20">ΔQ<tspan baseline-shift="sub" font-size="14">r</tspan> = 0.175 − 0.125r</text>
+    <line x1="925.000" y1="284.000" x2="969.000" y2="284.000" stroke="#B65315" stroke-width="4.1" />
+    <text x="984.000" y="290.000" font-size="22" font-weight="500">A joins D</text>
+    <text x="984.000" y="320.000" font-size="20">ΔQ<tspan baseline-shift="sub" font-size="14">r</tspan> = 0.1 − 0.05r</text>
+    <line x1="925.000" y1="367.000" x2="969.000" y2="367.000" stroke="#087969" stroke-width="4.1" />
+    <text x="984.000" y="373.000" font-size="22" font-weight="500">A joins E</text>
+    <text x="984.000" y="403.000" font-size="20">ΔQ<tspan baseline-shift="sub" font-size="14">r</tspan> = 0.05 − 0.05r</text>
+    <line x1="925.000" y1="450.000" x2="969.000" y2="450.000" stroke="#485963" stroke-width="4.1" stroke-dasharray="11 7" />
+    <text x="984.000" y="456.000" font-size="22" font-weight="500">A stays alone</text>
+    <text x="984.000" y="486.000" font-size="20">ΔQ<tspan baseline-shift="sub" font-size="14">r</tspan> = 0</text>
+    <line x1="925.000" y1="558.000" x2="969.000" y2="558.000" stroke="#F8D853" stroke-width="11" />
+    <text x="984.000" y="565.000" font-size="19">Highest available gain</text>
+  </g>
+</svg>
