@@ -1,12 +1,12 @@
 # MML — Maximum Modularity in Louvain
 
-**固定一张细胞图，只改变分辨率 $r$，Louvain 到底能给出哪些分群？** MML 能在多项式时间内列出所有可能的最终划分，覆盖从零到正无穷的全部非负实数分辨率，包括只在某一个临界点出现的划分。它给每种划分计算同一个经典 Newman–Girvan 模块度 $Q$，并列出全部最高分方案。如果目标是从这些可达划分中取得经典模块度或其他分群评价指标的最大值，就无须人工调节分辨率。MML 直接给出经典模块度的最大值。对于其他指标，可以按同一标准给每个可达划分评分，再取最大值。
+**MML 穷举分群方案，研究者选择评价指标。** 对近邻数 $k$ 固定的 Jaccard 共享近邻图（SNN），固定 Louvain 的细胞访问顺序、移动、收缩与平局规则，只改变分辨率 $r$。MML 能在多项式时间内列出 $r$ 从零到正无穷时可得到的每一种最终划分，包括只在单个临界点出现的划分。
 
-**Which partitions can Louvain return if only the resolution changes?** MML enumerates every distinct final partition attainable at any real resolution $r\geq 0$ in polynomial time, including partitions attained at a single critical value. It scores each partition by the same classical Newman–Girvan modularity $Q$ and returns every maximizer. If the goal is to maximize classical modularity or another clustering evaluation metric over these reachable partitions, there is no need to tune the resolution by hand. For another metric, score each enumerated partition by that metric and take the maximum.
+研究者可以根据自己的问题定义评分函数，对穷举出的每种划分逐一计算，比较得分并选出符合该标准的方案。换一个指标，可以直接使用同一份分群结果，无须重新运行 Louvain 或手动调节分辨率。**经典模块度 $Q$ 是可选指标之一**，R 包已提供它的得分。
 
-这个结论适用于近邻数 $k$ 固定的 Jaccard 共享近邻图（SNN）。给定同一张图，从每个细胞各自成群出发，固定细胞访问顺序、移动与收缩规则、平局规则，只接受严格改善目标的移动。经典 $Q$ 的比较要求图的总边权为正。
+**MML enumerates the partitions. Researchers choose how to evaluate them.** On a fixed-$k$ Jaccard shared nearest-neighbor (SNN) graph, fix the Louvain visit order, move, contraction and tie rules, and vary only the resolution $r$. MML enumerates every distinct final partition reachable at any real $r\geq 0$ in polynomial time, including partitions reached at a single critical value.
 
-The result applies to fixed-$k$ Jaccard shared nearest-neighbor (SNN) graphs. The specified deterministic Louvain procedure starts from singletons, fixes the visit order, move, contraction and tie rules, and accepts only strictly improving moves. Classical modularity is evaluated on a graph of positive total edge weight.
+Define a score for your research question and apply it to each enumerated partition. You can rank the candidates again under a different criterion using the same output, without rerunning Louvain or tuning the resolution by hand. **Classical modularity $Q$ is one optional metric** for which the R package supplies scores.
 
 [Download MML v0.3.0 · 下载](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/releases/tag/v0.3.0) · [Mathematical proof · 数学推导](docs/MATHEMATICAL_PROOF.md) · [Lean proofs · 形式化证明](lean/)
 
@@ -17,14 +17,14 @@ The result applies to fixed-$k$ Jaccard shared nearest-neighbor (SNN) graphs. Th
 Each candidate move has a gain that is affine in $r$. MML follows the decisions to the next crossing and evaluates the crossing itself as well as its right-hand limit. When no further crossing can change a decision, the same trajectory covers the rest of the half-line.
 
 - **Coverage · 无遗漏。** Lean proves that a partition is in the finite output set **if and only if** some nonnegative real resolution returns it. 这同时保证每个列出的划分都能取得，每个能取得的划分都被列出。[Completeness theorem](lean/RawJaccard.lean#L153)
-- **Complexity · 多项式时间。** For a fixed positive $k$ and $n>0$ cells, Lean proves a worst-case bound of $C(k)n^{14}$ operations for the dense reference algorithm, including enumeration, deduplication, scoring and selection. 上界按单位成本的精确算术与随机访问计数，常数只依赖 $k$。R/C++ 包使用稀疏数据结构，运行结果可用下方示例独立核验。[Arithmetic bound](lean/ArithmeticBound.lean#L99) · [Cost model and build instructions](lean/README.md)
-- **Scoring · 经典模块度。** The score of each row is its classical $Q$ on the original graph. The proof also identifies all ties for the highest score. 搜索时改变 $r$，比较最终方案时统一用经典 $Q$（评分分辨率为 1）。[Exact scores](lean/ScoredPath.lean#L37) · [Maximizers](lean/JaccardProgram.lean)
+- **Complexity · 多项式时间。** For a fixed positive $k$ and $n>0$ cells, Lean proves a worst-case bound of $C(k)n^{14}$ operations for the dense reference algorithm, including enumeration, deduplication and the built-in classical modularity calculation and selection. 上界按单位成本的精确算术与随机访问计数，常数只依赖 $k$。自定义指标的额外计算时间取决于其评分函数。[Arithmetic bound](lean/ArithmeticBound.lean#L99) · [Cost model and build instructions](lean/README.md)
+- **Built-in score · 包内评分。** For graphs of positive total edge weight, Lean also verifies the supplied classical modularity scores and all ties for their maximum. 研究者可直接取出每种划分的细胞标签，按其他标准评分。[Exact scores](lean/ScoredPath.lean#L37) · [Maximizers](lean/JaccardProgram.lean)
 
 ## HESC · 以人胚胎干细胞分化数据为例
 
-498 个细胞，近邻数 $k=20$。沿全部非负分辨率，MML 找到 **975 种不同划分**，分布在 992 个分辨率段。唯一最高分方案把细胞分成 **8 群**，经典 $Q\approx 0.863348742$，首次出现于 $r\approx 0.053519965$。与原有的 9 类注释事后比较，调整兰德指数（ARI）为 **0.930963**。
+MML 在 498 个细胞的 HESC 图（$k=20$）上穷举出 **975 种不同划分**，覆盖 992 个分辨率段。如果研究问题是“哪个划分最接近已有的 9 类注释”，可以用调整兰德指数（ARI）给全部 975 种划分打分。得分最高的是 **P8，9 群，ARI = 0.973899**。如果关心图上的经典模块度，同一批候选中得分最高的是 **P6，8 群，$Q = 0.863348742$**。
 
-On the 498-cell HESC graph, MML found **975 distinct partitions** across 992 resolution intervals. The unique winner had **8 clusters**, with classical $Q\approx 0.863348742$. Its adjusted Rand index against the nine reference classes was **0.930963**. The reference labels were used only after selection. [HESC data · GEO GSE85066](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE85066)
+The 498-cell HESC graph yielded **975 distinct partitions** across 992 resolution intervals. Scoring all 975 by adjusted Rand index (ARI) against the nine reference classes selects **P8, with 9 clusters and ARI = 0.973899**. Scoring the same candidates by classical modularity selects **P6, with 8 clusters and $Q = 0.863348742$**. [HESC data · GEO GSE85066](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE85066)
 
 ### Install and reproduce · 安装与复现
 
@@ -39,11 +39,27 @@ install.packages(paste0(release_url, "/SUNLouvainPath_0.3.0.zip"),
 library(SUNLouvainPath)
 hesc <- VerifyLouvainExample("hesc")
 mml <- SeuratObject::Tool(hesc, slot = "SUNLouvainPath")
-mml$scores[mml$scores$is_max, ]
-mml$recommendation
+mml$partitions[1:5, c("cell", "P6", "P8")]
 ```
 
-`VerifyLouvainExample("hesc")` reruns MML and checks cell memberships, exact interval endpoints, scores and the recommendation against the bundled reference. The default search covers the whole half-line. Set `workers = 1L` in `EnumerateLouvain()` to run sequentially, or use `workers` and `split_points` to distribute intervals across threads. 设置有限的 `r_max` 后，返回的最优方案只针对选定范围。[R package and parallel options · R 包与并行参数](SUNLouvainPath/)
+### Score the candidates with your own function · 用自己的指标评价分群
+
+`mml$partitions` 的每一行是一个细胞，每个 `P` 列是一种划分。下例用 ARI 衡量与 HESC 已有注释的一致性。换用自己的指标时，替换 `score_partition()` 即可。Each candidate column contains one cluster assignment per cell. Here the scoring function uses the reference labels and returns a higher value for closer agreement.
+
+```r
+# For this ARI example, install mclust once with install.packages("mclust").
+partitions <- mml$partitions
+reference <- hesc$reference_annotation[match(partitions$cell, colnames(hesc))]
+score_partition <- function(groups) mclust::adjustedRandIndex(groups, reference)
+
+candidates <- partitions[setdiff(names(partitions), "cell")]
+scores <- vapply(candidates, score_partition, numeric(1))
+scores[scores == max(scores)]
+#        P8
+# 0.9738988
+```
+
+`VerifyLouvainExample("hesc")` reruns MML and checks cell memberships, exact interval endpoints, scores and the recommendation against the bundled reference. The default search covers the whole half-line. Set `workers = 1L` in `EnumerateLouvain()` to run sequentially, or use `workers` and `split_points` to distribute intervals across threads. 设置有限的 `r_max` 后，可评价的候选集覆盖所选范围。[R package and parallel options · R 包与并行参数](SUNLouvainPath/)
 
 ## Authors · 作者
 
