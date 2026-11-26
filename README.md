@@ -1,53 +1,100 @@
 # MML — Maximum Modularity in Louvain
 
-**MML 穷举分群方案，研究者选择评价指标。** 对近邻数 $k$ 固定的 Jaccard 共享近邻图（SNN），固定 Louvain 的细胞访问顺序、移动、收缩与平局规则，只改变分辨率 $r$。MML 能在多项式时间内列出 $r$ 从零到正无穷时可得到的每一种最终划分，包括只在单个临界点出现的划分。
+**English** · **[简体中文](README.zh-CN.md)**
 
-研究者可以根据自己的问题定义评分函数，对穷举出的每种划分逐一计算，比较得分并选出符合该标准的方案。换一个指标，可以直接使用同一份分群结果，无须重新运行 Louvain 或手动调节分辨率。**经典模块度 $Q$ 是可选指标之一**，R 包已提供它的得分。
+**MML enumerates the partitions. Researchers choose how to evaluate them.** On a Jaccard shared nearest-neighbor (SNN) graph with fixed neighbor count $k$, fix the Louvain visit order, move, contraction and tie rules, and vary only the resolution $r$. MML lists in polynomial time every distinct final partition reachable at any real $r\geq 0$, including those reached at a single critical value.
 
-**MML enumerates the partitions. Researchers choose how to evaluate them.** On a fixed-$k$ Jaccard shared nearest-neighbor (SNN) graph, fix the Louvain visit order, move, contraction and tie rules, and vary only the resolution $r$. MML enumerates every distinct final partition reachable at any real $r\geq 0$ in polynomial time, including partitions reached at a single critical value.
+Define a score for your research question and apply it to every eligible partition. You can compare assignments by several criteria or select the best for a particular criterion using the same output. Classical Newman–Girvan modularity $Q$ is one optional metric. Its scores are included in the R package.
 
-Define a score for your research question and apply it to each enumerated partition. You can rank the candidates again under a different criterion using the same output, without rerunning Louvain or tuning the resolution by hand. **Classical modularity $Q$ is one optional metric** for which the R package supplies scores.
+[Download MML v0.3.0](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/releases/tag/v0.3.0) · [Mathematical proof](docs/MATHEMATICAL_PROOF.md) · [Lean proofs](lean/)
 
-[Download MML v0.3.0 · 下载](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/releases/tag/v0.3.0) · [Mathematical proof · 数学推导](docs/MATHEMATICAL_PROOF.md) · [Lean proofs · 形式化证明](lean/)
+## MML covers every reachable partition
 
-## Why enumeration is complete · 为什么能无遗漏穷举
+At any step of Louvain, each candidate move has a gain that is affine in $r$. MML traces the decisions from $r=0$ to the next value where a challenger can overtake the chosen move. It checks the crossing itself and the decisions immediately to its right, following the same logic through community contractions. Once no further crossing can change a decision, the current trajectory covers the rest of the half-line. This use of score crossings was inspired by work on single-parameter greedy algorithms. [Gupta & Roughgarden, 2017, §§3.3.3–3.3.4](https://doi.org/10.1137/15M1050276)
 
-固定每一步的候选移动后，其增益是 $r$ 的一次函数。MML 从 $r=0$ 出发，找出下一处可能改变选择的交点，在交点本身和紧邻它的右侧分别追踪 Louvain 的所有移动与收缩。如果后面再无交点，当前轨迹就覆盖直到正无穷的剩余区间。这个思路受到 Gupta 与 Roughgarden 关于单参数贪心算法的启发。[Gupta & Roughgarden, 2017, §§3.3.3–3.3.4](https://doi.org/10.1137/15M1050276)
+### Lean proves completeness and a polynomial operation bound
 
-Each candidate move has a gain that is affine in $r$. MML follows the decisions to the next crossing and evaluates the crossing itself as well as its right-hand limit. When no further crossing can change a decision, the same trajectory covers the rest of the half-line.
+Let $S$ be an $n$-cell Jaccard SNN graph constructed from equal-sized neighbor sets of size $k>0$ and a symmetric pruning mask. Let $E(S)$ be the finite set enumerated by MML. Write $L_S(r)$ for the canonical final partition returned by the specified deterministic Louvain procedure at resolution $r$, starting from singleton cells.
 
-- **Coverage · 无遗漏。** Lean proves that a partition is in the finite output set **if and only if** some nonnegative real resolution returns it. 这同时保证每个列出的划分都能取得，每个能取得的划分都被列出。[Completeness theorem](lean/RawJaccard.lean#L153)
-- **Complexity · 多项式时间。** For a fixed positive $k$ and $n>0$ cells, Lean proves a worst-case bound of $C(k)n^{14}$ operations for the dense reference algorithm, including enumeration, deduplication and the built-in classical modularity calculation and selection. 上界按单位成本的精确算术与随机访问计数，常数只依赖 $k$。自定义指标的额外计算时间取决于其评分函数。[Arithmetic bound](lean/ArithmeticBound.lean#L99) · [Cost model and build instructions](lean/README.md)
-- **Built-in score · 包内评分。** For graphs of positive total edge weight, Lean also verifies the supplied classical modularity scores and all ties for their maximum. 研究者可直接取出每种划分的细胞标签，按其他标准评分。[Exact scores](lean/ScoredPath.lean#L37) · [Maximizers](lean/JaccardProgram.lean)
+1. **Exact coverage and uniqueness.** For every partition $P$,
 
-## HESC · 以人胚胎干细胞分化数据为例
+   $$P\in E(S) \quad\Longleftrightarrow\quad \exists\,r\in[0,\infty)\; L_S(r)=P.$$
 
-MML 在 498 个细胞的 HESC 图（$k=20$）上穷举出 **975 种不同划分**，覆盖 992 个分辨率段。如果研究问题是“哪个划分最接近已有的 9 类注释”，可以用调整兰德指数（ARI）给全部 975 种划分打分。得分最高的是 **P8，9 群，ARI = 0.973899**。如果关心图上的经典模块度，同一批候选中得分最高的是 **P6，8 群，$Q = 0.863348742$**。
+   For every real $r$, the run terminates with exactly one canonical final partition. The equivalence covers partitions attained on intervals and those attained only at a single endpoint. [`louvain_enumeration_exact`](lean/RawJaccard.lean#L153) · [`raw_total_unique`](lean/RawJaccard.lean#L159)
 
-The 498-cell HESC graph yielded **975 distinct partitions** across 992 resolution intervals. Scoring all 975 by adjusted Rand index (ARI) against the nine reference classes selects **P8, with 9 clusters and ARI = 0.973899**. Scoring the same candidates by classical modularity selects **P6, with 8 clusters and $Q = 0.863348742$**. [HESC data · GEO GSE85066](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE85066)
+2. **Polynomial operation bound.** For every fixed positive integer $k$ there exists a constant $C(k)$ such that, for every $n>0$ and every such $S$, the dense reference algorithm uses at most $C(k)n^{14}$ unit-cost exact arithmetic and random-access operations. This covers constructing the input graph, enumerating and deduplicating the reachable partitions, computing the built-in classical modularity scores and collecting all maximizers. ROGUE, SCCAF and Silhouette are calculated separately on the returned partitions. Each adds the cost of its own scoring procedure. [`arithmetic_n14`](lean/ArithmeticBound.lean#L99) · [Cost model and build instructions](lean/README.md)
 
-### Install and reproduce · 安装与复现
+3. **Exact classical modularity scores and all maximizers.** For positive total edge weight, let $Q_S(P)$ be classical modularity on the original graph. The scored output contains each $P\in E(S)$ once with score $Q_S(P)$. The set of winning partitions is exactly
 
-MML 的 R 包名为 `SUNLouvainPath`。以下命令在 64 位 x86 Windows 的 R 4.6.x 安装二进制包。The release also provides a source package for R ≥ 4.2 with a C++17 toolchain. [Source installation · 源码安装](SUNLouvainPath/README.md)
+   $$\{P\in E(S)\mid \forall P'\in E(S),\;Q_S(P')\le Q_S(P)\}.$$
+
+   This guarantees that all ties are returned when the researcher chooses this metric. [`scores_raw_exact`](lean/ScoredPath.lean#L37) · [`distinct_scores`](lean/ScoredPath.lean#L42) · [`best_exact`](lean/JaccardProgram.lean#L102)
+
+## Bounded average SNN degree gives a sparse operation bound of $O_k(n^7)$
+
+Single-cell workflows can store the pruned SNN as a sparse graph and scan its nonzero edges directly. Let $m$ count undirected edges between distinct cells. If $m\le c n$ for a constant $c$ independent of cell count, the average SNN degree is bounded. For fixed $k$, $c$ and a fixed number of initial search intervals, the sparse algorithm then enumerates all reachable partitions in $O(n^7)$ unit-cost arithmetic operations. The HESC graph has 14,224 edges across 498 cells, an average degree of 57.1.
+
+<details>
+<summary>Derivation of the sparse bound</summary>
+
+1. **Count the possible boundaries.** With fixed $k$, clearing the Jaccard denominators gives an integer weight per edge bounded by a constant depending only on $k$. Thus the sum of the scaled weighted degrees is $T=O_k(m)$. For $T>0$, a scaled partition score is $Ta-rb$, where $a$ and $b$ are integers with $0\le a\le T$ and $0\le b\le T^2$. Every isolated crossing has the form $T\Delta a/\Delta b$, so there are $O(T^3)$ candidate boundaries. Checking each point and its right-hand limit gives $O(T^3)$ trajectories. [Crossing count](lean/BreakpointCount.lean)
+2. **Count the work per trajectory.** Each accepted move advances among $O(T^3)$ coefficient pairs, with slope breaking equal-score ties in a right-limit trace. Contraction preserves the score, and each of at most $n$ levels adds at most one sweep with unchanged assignments. Therefore a trajectory uses $O(T^3+n)$ sweeps. Visiting only stored edges and the neighboring candidate communities costs $O(n+m)$ per sweep. With $m=O(n)$ this gives $O_k(n^3)\times O_k(n^3)\times O(n)=O_k(n^7)$ for all sweeps. [Move loop](SUNLouvainPath/src/path.cpp#L60)
+3. **Include contraction and output.** For $B=O(T^3)$ outputs before deduplication, even pairwise comparisons of $n$-cell membership vectors cost at most $O(nB^2)=O_k(n^7)$. Scoring the distinct outputs by classical modularity adds $O(B(n+m))$. In the C++ implementation, sweeps iterate over an adjacency map and accumulate candidate weights in indexed arrays. Ordered-map insertions during a contraction can cost $O(m\log n+n)$ per level. Over at most $n$ levels per trajectory this contributes at most $O_k(n^5\log n)$ in the sparse case. The ordered map for partition keys needs at most $O(nB\log(B+1))$ comparisons of cell labels. Both terms fit within the stated operation bound. [Contraction](SUNLouvainPath/src/path.cpp#L125) · [Partition indexing](SUNLouvainPath/src/path.cpp#L312)
+
+</details>
+
+## The choice of metric determines which HESC partition scores highest
+
+MML found **975 distinct partitions** across 992 resolution intervals for 498 cells from human embryonic stem cell differentiation ($k=20$). Each row selects the highest-scoring partition among the candidates eligible for that metric. [HESC data, GEO GSE85066](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE85066)
+
+| Evaluation criterion | Maximizing partition | Clusters | Score | Scored out of 975 | Example resolution $r$ |
+| --- | --- | ---: | ---: | ---: | ---: |
+| ROGUE | P12 | 9 | 0.999789 | 60 | 4 |
+| SCCAF self-projection accuracy | P1 | 3 | 1.000000 | 73 | 0 |
+| Mean Silhouette width | P6 | 8 | 0.521489 | 974 | 1 |
+| Adjusted Rand index (ARI) | P8 | 9 | 0.973899 | 975 | 2.9 |
+| Classical modularity | P6 | 8 | 0.863349 | 975 | 1 |
+
+ROGUE measures within-cluster expression homogeneity using gene read-count estimates from recount3. SCCAF measures how well gene expression predicts held-out cluster labels. Silhouette measures separation in the ten principal components used to build the graph. ARI measures agreement with the nine reference classes. [Scoring rules and reproducible code](docs/hesc/methods.md)
+
+[Download scores for all 975 partitions (CSV)](docs/hesc/partition-scores.csv) · [Cluster assignments for the winning partitions](docs/hesc/winning-memberships.csv)
+
+## MML is distributed as an R package
+
+MML is distributed as the R package `SUNLouvainPath`. Run the installation block for your platform.
+
+**64-bit x86 Windows, R 4.6.x.** Install the precompiled binary in R.
 
 ```r
 install.packages(c("Matrix", "parallelly", "Rcpp", "SeuratObject"))
 release_url <- "https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/releases/download/v0.3.0"
 install.packages(paste0(release_url, "/SUNLouvainPath_0.3.0.zip"),
                  repos = NULL, type = "win.binary")
+```
 
+**Linux, macOS, or a source build on Windows.** The source package requires R ≥ 4.2 and a C++17 toolchain.
+
+```r
+install.packages(c("Matrix", "parallelly", "Rcpp", "SeuratObject", "BH"))
+release_url <- "https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/releases/download/v0.3.0"
+install.packages(paste0(release_url, "/SUNLouvainPath_0.3.0.tar.gz"),
+                 repos = NULL, type = "source")
+```
+
+## The HESC example reproduces the partitions for custom scoring
+
+The bundled example reruns the enumeration and checks cell assignments, exact interval endpoints, modularity scores and the recommendation against the reference results. Each row of `mml$partitions` represents a cell. Each column beginning with `P` gives the cluster labels for one partition.
+
+```r
 library(SUNLouvainPath)
 hesc <- VerifyLouvainExample("hesc")
 mml <- SeuratObject::Tool(hesc, slot = "SUNLouvainPath")
 mml$partitions[1:5, c("cell", "P6", "P8")]
 ```
 
-### Score the candidates with your own function · 用自己的指标评价分群
-
-`mml$partitions` 的每一行是一个细胞，每个 `P` 列是一种划分。下例用 ARI 衡量与 HESC 已有注释的一致性。换用自己的指标时，替换 `score_partition()` 即可。Each candidate column contains one cluster assignment per cell. Here the scoring function uses the reference labels and returns a higher value for closer agreement.
+To run the ARI example, install `mclust` once with `install.packages("mclust")`. The function below compares every candidate with the HESC reference annotation. Replace `score_partition()` to use your own criterion. The last line retrieves the built-in classical modularity result for comparison.
 
 ```r
-# For this ARI example, install mclust once with install.packages("mclust").
 partitions <- mml$partitions
 reference <- hesc$reference_annotation[match(partitions$cell, colnames(hesc))]
 score_partition <- function(groups) mclust::adjustedRandIndex(groups, reference)
@@ -57,19 +104,20 @@ scores <- vapply(candidates, score_partition, numeric(1))
 scores[scores == max(scores)]
 #        P8
 # 0.9738988
+
+mml$scores[mml$scores$is_max, c("partition", "n_clusters", "modularity")]
+# P6    8    0.8633487
 ```
 
-`VerifyLouvainExample("hesc")` reruns MML and checks cell memberships, exact interval endpoints, scores and the recommendation against the bundled reference. The default search covers the whole half-line. Set `workers = 1L` in `EnumerateLouvain()` to run sequentially, or use `workers` and `split_points` to distribute intervals across threads. 设置有限的 `r_max` 后，可评价的候选集覆盖所选范围。[R package and parallel options · R 包与并行参数](SUNLouvainPath/)
+For your own SNN graph, use `EnumerateLouvain()`. Its default range is $[0,\infty)$. Set `workers = 1L` for sequential execution or use `workers` and `split_points` to distribute intervals across threads. With a finite `r_max`, the candidates cover the selected range. [R package and parallel options](SUNLouvainPath/)
 
-## Authors · 作者
+## Authors
 
-- **Junbo Wang（王俊博）** · [1124315977@qq.com](mailto:1124315977@qq.com)
-- **Jianyou Liao（廖建友）** · [liaojy3@mail.sysu.edu.cn](mailto:liaojy3@mail.sysu.edu.cn)
-
-王俊博、廖建友共同开发 MML，开发过程中使用了 GPT-6.2 Astra 辅助。两位作者对本项目报告的结果共同负责。**论文正在写作中，引用前请联系作者。**
+- **Junbo Wang (王俊博)** · [1124315977@qq.com](mailto:1124315977@qq.com)
+- **Jianyou Liao (廖建友)** · [liaojy3@mail.sysu.edu.cn](mailto:liaojy3@mail.sysu.edu.cn)
 
 Junbo Wang and Jianyou Liao developed MML with assistance from GPT-6.2 Astra. Both authors take joint responsibility for the reported results. **A manuscript is in preparation. Please contact the authors before citing this work.**
 
-[Louvain · Blondel et al., 2008](https://doi.org/10.1088/1742-5468/2008/10/P10008) · [Classical modularity · Newman & Girvan, 2004](https://doi.org/10.1103/PhysRevE.69.026113) · [Resolution parameter · Reichardt & Bornholdt, 2006](https://doi.org/10.1103/PhysRevE.74.016110)
+[Louvain algorithm · Blondel et al., 2008](https://doi.org/10.1088/1742-5468/2008/10/P10008) · [Classical modularity · Newman & Girvan, 2004](https://doi.org/10.1103/PhysRevE.69.026113) · [Resolution parameter · Reichardt & Bornholdt, 2006](https://doi.org/10.1103/PhysRevE.74.016110)
 
-[Previous README · 旧首页原文](docs/archive/README-before-MML.md) · [Old page with its original links · 按当时版本浏览](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/blob/168f96cf690151580b91c99a59655e68d2cabcf1/README.md) · [Repository license](LICENSE) · [R package license](SUNLouvainPath/DESCRIPTION)
+[Archived project homepage](docs/archive/README-before-MML.md) · [Original page with working historical links](https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/blob/168f96cf690151580b91c99a59655e68d2cabcf1/README.md) · [Repository license](LICENSE) · [R package license](SUNLouvainPath/DESCRIPTION)
