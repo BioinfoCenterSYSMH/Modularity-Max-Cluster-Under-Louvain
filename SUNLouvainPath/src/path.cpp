@@ -1,10 +1,13 @@
 #include <Rcpp.h>
+#include "interval_threads.h"
 #include <boost/multiprecision/cpp_int.hpp>
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <numeric>
 #include <optional>
+#include <limits>
+#include <set>
 #include <vector>
 
 namespace {
@@ -65,7 +68,7 @@ Labels move_units(const Network& g, const Integer& twice_weight, Trace& trace) {
     targets.reserve(n);
     bool changed;
     do {
-        Rcpp::checkUserInterrupt();
+        poll_path_interrupt();
         changed = false;
         for (int u = 0; u < n; ++u) {
             const int source = group[u];
@@ -209,12 +212,76 @@ Rcpp::DataFrame recommend(const std::vector<Segment>& segments,
         Rcpp::_["representative_resolution"] = witness,
         Rcpp::_["representative_partition"] = witness_partition);
 }
-} // namespace
 
-// [[Rcpp::export]]
-Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
-                             Rcpp::IntegerVector type, Rcpp::NumericVector values,
-                             Rcpp::NumericVector overlap, int k) {
+// Decimal user inputs are base ten, including values with leading zeroes.
+// Boost's integer string constructor otherwise treats leading zeroes as octal.
+Integer decimal_integer(const std::string& digits) {
+    if (digits.empty() || digits.find_first_not_of("0123456789") != std::string::npos) {
+        Rcpp::stop("Resolutions must be nonnegative numbers or integer fractions.");
+    }
+    auto begin = digits.find_first_not_of('0');
+    return begin == std::string::npos ? Integer(0) : Integer(digits.substr(begin));
+}
+
+Rational resolution(const std::string& input) {
+    bool negative = !input.empty() && input[0] == '-';
+    std::string text = input.substr(!input.empty() && (input[0] == '+' || negative) ? 1 : 0);
+    std::size_t slash = text.find('/');
+    if (slash != std::string::npos) {
+        Integer num = decimal_integer(text.substr(0, slash));
+        Integer den = decimal_integer(text.substr(slash + 1));
+        if (negative && num != 0) Rcpp::stop("Resolutions cannot be negative.");
+        if (den == 0) Rcpp::stop("A resolution fraction must have a positive denominator.");
+        return Rational(num, den);
+    }
+
+    // Expanding a short exponent such as 1e999999999 into an integer would
+    // otherwise allocate hundreds of MB before the input could be validated.
+    long long exponent = 0;
+    std::size_t e = text.find_first_of("eE");
+    if (e != std::string::npos) {
+        std::string suffix = text.substr(e + 1);
+        text.resize(e);
+        bool down = !suffix.empty() && suffix[0] == '-';
+        if (down || (!suffix.empty() && suffix[0] == '+')) suffix.erase(0, 1);
+        auto digits = decimal_integer(suffix);
+        if (digits > 10000) Rcpp::stop("Scientific-notation exponents must be between -10000 and 10000.");
+        exponent = digits.convert_to<int>();
+        if (down) exponent = -exponent;
+    }
+    std::size_t dot = text.find('.');
+    if (dot != std::string::npos) {
+        exponent -= static_cast<long long>(text.size() - dot - 1);
+        text.erase(dot, 1);
+    }
+    Integer mantissa = decimal_integer(text);
+    if (mantissa == 0) return Rational(0);
+    if (negative) Rcpp::stop("Resolutions cannot be negative.");
+    auto magnitude = static_cast<unsigned long long>(std::abs(exponent));
+    if (magnitude > std::numeric_limits<unsigned>::max()) Rcpp::stop("Decimal exponent is too large.");
+    Integer power = boost::multiprecision::pow(Integer(10), static_cast<unsigned>(magnitude));
+    if (exponent >= 0) return Rational(mantissa * power);
+    return Rational(mantissa, power);
+}
+
+std::optional<Rational> upper_limit(const std::string& text) {
+    if (text == "Inf") return std::nullopt;
+    return resolution(text);
+}
+
+std::vector<Rational> interior_splits(Rcpp::CharacterVector points,
+                                      const std::optional<Rational>& limit) {
+    std::set<Rational> interior;
+    for (R_xlen_t i = 0; i < points.size(); ++i) {
+        if (Rcpp::CharacterVector::is_na(points[i])) Rcpp::stop("Split points cannot be missing.");
+        Rational value = resolution(Rcpp::as<std::string>(points[i]));
+        if (value > 0 && (!limit || value < *limit)) interior.insert(std::move(value));
+    }
+    return {interior.begin(), interior.end()};
+}
+
+Network build_graph(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type,
+                    Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Integer& total) {
     std::vector<Rational> fractions;
     Integer scale = 1;
     for (R_xlen_t t = 0; t < values.size(); ++t) {
@@ -223,7 +290,6 @@ Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector 
             Integer s = static_cast<int>(overlap[t]);
             w = Rational(s, Integer(2) * k - s);
         } else {
-            // Exact binary rational of the stored finite double.
             w = Rational(static_cast<double>(values[t]));
         }
         fractions.push_back(w);
@@ -232,53 +298,115 @@ Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector 
     std::vector<Integer> weights;
     for (const auto& w : fractions) weights.push_back(numerator(w) * (scale / denominator(w)));
     Network graph(n);
-    Integer twice_weight = 0;
     for (R_xlen_t idx = 0; idx < i.size(); ++idx) {
         int u = i[idx] - 1, v = j[idx] - 1;
         const Integer& w = weights[type[idx] - 1];
         graph.add_edge(u, v, w);
         graph.volume[u] += w;
         graph.volume[v] += w;
-        twice_weight += 2 * w;
+        total += 2 * w;
     }
+    return graph;
+}
 
-    std::map<Labels, int> ids;
-    auto id_for = [&](const Labels& labels) {
-        return ids.emplace(labels, static_cast<int>(ids.size()) + 1).first->second;
-    };
+using PartitionIndex = std::map<Labels, int>;
+
+std::vector<Labels> take_partitions(PartitionIndex& index) {
+    std::vector<Labels> out(index.size());
+    while (!index.empty()) {
+        auto node = index.extract(index.begin());
+        out[node.mapped() - 1] = std::move(node.key());
+    }
+    return out;
+}
+
+struct IntervalData {
+    std::vector<Labels> partitions;
+    std::vector<Integer> numerators;
     std::vector<Segment> segments;
-    Rational start = 0;
+};
+
+IntervalData scan_interval(const Network& graph, const Integer& total, Rational start,
+                           const std::optional<Rational>& limit, bool include_upper) {
+    PartitionIndex ids;
+    auto id_for = [&](Labels labels) {
+        return ids.try_emplace(std::move(labels), static_cast<int>(ids.size()) + 1).first->second;
+    };
+    IntervalData block;
     for (;;) {
-        Rcpp::checkUserInterrupt();
-        std::string lower = start.str();
+        poll_path_interrupt();
+        const std::string here = start.str();
         Trace point(start, false);
-        append(segments, id_for(run(graph, twice_weight, point)), lower, lower, true, true);
+        append(block.segments, id_for(run(graph, total, point)), here, here, true, true);
+        if (limit && start == *limit) break;
         Trace after(start, true);
-        int id = id_for(run(graph, twice_weight, after));
+        int id = id_for(run(graph, total, after));
         auto next = after.next();
-        append(segments, id, lower, next ? next->str() : "Inf", false, false);
+        // A right trace certifies the open interval up to the next crossing or the cut.
+        if (limit && (!next || *next >= *limit)) {
+            append(block.segments, id, here, limit->str(), false, false);
+            if (!include_upper) break;
+            start = *limit;
+            continue;
+        }
+        append(block.segments, id, here, next ? next->str() : "Inf", false, false);
         if (!next) break;
         start = *next;
     }
-    Rcpp::IntegerMatrix membership(n, ids.size());
-    std::vector<Integer> numerators(ids.size());
-    for (const auto& [labels, id] : ids) {
-        for (int u = 0; u < n; ++u) membership(u, id - 1) = labels[u] + 1;
-        numerators[id - 1] = classic_score(graph, labels, twice_weight);
+    block.partitions = take_partitions(ids);
+    block.numerators.reserve(block.partitions.size());
+    for (const auto& labels : block.partitions) {
+        poll_path_interrupt();
+        block.numerators.push_back(classic_score(graph, labels, total));
     }
-    Rcpp::CharacterVector exact(ids.size(), NA_STRING);
-    Rcpp::NumericVector modularity(ids.size(), NA_REAL);
-    Rcpp::LogicalVector is_best(ids.size(), NA_LOGICAL);
-    if (twice_weight > 0) {
-        Integer denominator = twice_weight * twice_weight;
-        Integer maximum = *std::max_element(numerators.begin(), numerators.end());
-        for (std::size_t idx = 0; idx < numerators.size(); ++idx) {
-            Rational q(numerators[idx], denominator);
+    return block;
+}
+
+IntervalData merge_intervals(std::vector<IntervalData> blocks) {
+    if (blocks.size() == 1) return std::move(blocks.front());
+    IntervalData result;
+    PartitionIndex index;
+    for (auto& block : blocks) {
+        std::vector<int> ids;
+        ids.reserve(block.partitions.size());
+        // Each block and its partitions arrive in ascending first-appearance order,
+        // regardless of the order in which individual workers completed.
+        for (std::size_t i = 0; i < block.partitions.size(); ++i) {
+            auto entry = index.try_emplace(std::move(block.partitions[i]), static_cast<int>(index.size()) + 1);
+            ids.push_back(entry.first->second);
+            if (entry.second) result.numerators.push_back(std::move(block.numerators[i]));
+        }
+        for (const auto& s : block.segments) {
+            append(result.segments, ids[s.id - 1], s.lower, s.upper, s.left_closed, s.right_closed);
+        }
+        block = IntervalData{};
+    }
+    result.partitions = take_partitions(index);
+    return result;
+}
+
+Rcpp::List to_r(const IntervalData& path, const Integer& total) {
+    const std::size_t count = path.partitions.size();
+    Rcpp::IntegerMatrix membership(path.partitions.front().size(), count);
+    for (std::size_t idx = 0; idx < count; ++idx) {
+        Rcpp::checkUserInterrupt();
+        const auto& labels = path.partitions[idx];
+        for (std::size_t u = 0; u < labels.size(); ++u) membership(u, idx) = labels[u] + 1;
+    }
+    Rcpp::CharacterVector exact(count, NA_STRING);
+    Rcpp::NumericVector modularity(count, NA_REAL);
+    Rcpp::LogicalVector is_best(count, NA_LOGICAL);
+    if (total > 0) {
+        Integer den = total * total;
+        Integer maximum = *std::max_element(path.numerators.begin(), path.numerators.end());
+        for (std::size_t idx = 0; idx < count; ++idx) {
+            Rational q(path.numerators[idx], den);
             exact[idx] = q.str();
             modularity[idx] = q.convert_to<double>();
-            is_best[idx] = numerators[idx] == maximum;
+            is_best[idx] = path.numerators[idx] == maximum;
         }
     }
+    const auto& segments = path.segments;
     Rcpp::IntegerVector partition(segments.size());
     Rcpp::CharacterVector lower(segments.size()), upper(segments.size());
     Rcpp::LogicalVector left_closed(segments.size()), right_closed(segments.size());
@@ -300,4 +428,56 @@ Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector 
             Rcpp::_["partition"] = partition, Rcpp::_["lower"] = lower,
             Rcpp::_["upper"] = upper, Rcpp::_["lower_closed"] = left_closed,
             Rcpp::_["upper_closed"] = right_closed));
+}
+} // namespace
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List resolution_ranges_cpp(Rcpp::CharacterVector split_points, std::string r_max) {
+    auto limit = upper_limit(r_max);
+    auto splits = interior_splits(split_points, limit);
+    Rcpp::CharacterVector points(splits.size());
+    for (std::size_t i = 0; i < splits.size(); ++i) points[i] = splits[i].str();
+    return Rcpp::List::create(Rcpp::_["split_points"] = points,
+                              Rcpp::_["r_max"] = limit ? limit->str() : std::string("Inf"));
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List enumerate_interval_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
+                                  Rcpp::IntegerVector type, Rcpp::NumericVector values,
+                                  Rcpp::NumericVector overlap, int k, std::string lower,
+                                  std::string upper, bool include_upper) {
+    auto limit = upper_limit(upper);
+    auto start = resolution(lower);
+    if (limit && (*limit < start || (*limit == start && !include_upper))) {
+        Rcpp::stop("The resolution interval must be nonempty.");
+    }
+    Integer total = 0;
+    auto graph = build_graph(n, i, j, type, values, overlap, k, total);
+    return to_r(scan_interval(graph, total, start, limit, include_upper), total);
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List enumerate_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
+                                  Rcpp::IntegerVector type, Rcpp::NumericVector values,
+                                  Rcpp::NumericVector overlap, int k, Rcpp::CharacterVector split_points,
+                                  std::string r_max, int workers) {
+    auto limit = upper_limit(r_max);
+    auto starts = interior_splits(split_points, limit);
+    starts.insert(starts.begin(), Rational(0));
+    if (workers < 1) Rcpp::stop("workers must be a positive integer.");
+    Integer total = 0;
+    auto graph = build_graph(n, i, j, type, values, overlap, k, total);
+    auto blocks = map_intervals(starts.size(), workers, [&](std::size_t idx) {
+        bool last = idx + 1 == starts.size();
+        auto end = last ? limit : std::optional<Rational>(starts[idx + 1]);
+        return scan_interval(graph, total, starts[idx], end, last && limit.has_value());
+    });
+    return to_r(merge_intervals(std::move(blocks)), total);
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
+                              Rcpp::IntegerVector type, Rcpp::NumericVector values,
+                              Rcpp::NumericVector overlap, int k) {
+    return enumerate_interval_cpp(n, i, j, type, values, overlap, k, "0", "Inf", false);
 }

@@ -24,10 +24,54 @@ decode_weights <- function(values, k, mode, n) {
     list(k = 0L, overlap = numeric())
 }
 
+# Character inputs retain exact user-supplied fractions. Numeric inputs use
+# the fewest significant decimal digits that round-trip to the supplied R value.
+resolution_text <- function(x, name) {
+    if (is.null(x) && identical(name, "split_points")) return(character())
+    if (!is.null(dim(x)) || is.object(x) || anyNA(x)) {
+        stop(name, " must contain non-missing numbers or resolution strings.", call. = FALSE)
+    }
+    if (is.character(x)) return(trimws(unname(x)))
+    if (!typeof(x) %in% c("integer", "double")) {
+        stop(name, " must be numeric or character.", call. = FALSE)
+    }
+    if (any(x < 0) || (name == "split_points" && any(!is.finite(x)))) {
+        stop(name, " contains a resolution outside its allowed range.", call. = FALSE)
+    }
+    x[x == 0] <- 0
+    text <- rep.int("Inf", length(x))
+    remaining <- which(is.finite(x))
+    for (digits in seq_len(17L)) {
+        if (!length(remaining)) break
+        values <- x[remaining]
+        candidate <- trimws(formatC(values, format = "g", digits = digits, decimal.mark = "."))
+        exact <- as.double(candidate) == values
+        text[remaining[exact]] <- candidate[exact]
+        remaining <- remaining[!exact]
+    }
+    if (length(remaining)) stop("Could not encode numeric ", name, ".", call. = FALSE)
+    text
+}
+
+interval_worker_count <- function(workers, intervals) {
+    if (is.null(workers)) workers <- min(4L, parallelly::availableCores())
+    if (length(workers) != 1L || !typeof(workers) %in% c("integer", "double") ||
+        is.object(workers) || !is.null(dim(workers)) || !is.finite(workers) ||
+        workers < 1 || workers > .Machine$integer.max || workers != floor(workers)) {
+        stop("workers must be NULL or a positive whole number.", call. = FALSE)
+    }
+    as.integer(min(workers, intervals))
+}
+
 EnumerateLouvain <- function(object, graph = NULL, k = NULL,
-                             weights = c("auto", "jaccard", "stored")) {
+                             weights = c("auto", "jaccard", "stored"),
+                             split_points = c(0.5, 1, 2), r_max = Inf, workers = NULL) {
     if (!inherits(object, "Seurat")) stop("object must be a Seurat object.")
     weights <- match.arg(weights)
+    if (length(r_max) != 1L) stop("r_max must be a single upper limit.", call. = FALSE)
+    limit_text <- resolution_text(r_max, "r_max")
+    ranges <- resolution_ranges_cpp(resolution_text(split_points, "split_points"), limit_text)
+    n_workers <- interval_worker_count(workers, length(ranges$split_points) + 1L)
     graphs <- SeuratObject::Graphs(object)
     if (is.null(graph)) {
         default <- paste0(SeuratObject::DefaultAssay(object), "_snn")
@@ -55,8 +99,9 @@ EnumerateLouvain <- function(object, graph = NULL, k = NULL,
     edges <- Matrix::summary(Matrix::drop0(Matrix::triu(g, k = 1L)))
     values <- unique(edges$x)
     encoding <- decode_weights(values, k, weights, length(vertices))
-    path <- enumerate_path_cpp(length(vertices), edges$i, edges$j,
-                               match(edges$x, values), values, encoding$overlap, encoding$k)
+    path <- enumerate_parallel_cpp(length(vertices), edges$i, edges$j, match(edges$x, values),
+                                  values, encoding$overlap, encoding$k, ranges$split_points,
+                                  ranges$r_max, n_workers)
 
     membership <- path$membership[match(cells, vertices), , drop = FALSE]
     ids <- paste0("P", seq_len(ncol(membership)))
@@ -79,8 +124,13 @@ EnumerateLouvain <- function(object, graph = NULL, k = NULL,
                         k_used = if (encoding$k) encoding$k else NA_integer_,
                         k_supplied = k, vertex_order = vertices,
                         diagonal = "ignored", algorithm = "SUNLouvainPath-0.1",
+                        split_points = ranges$split_points, r_max = ranges$r_max,
+                        workers = n_workers,
                         package_version = as.character(utils::packageVersion("SUNLouvainPath")))
     )
     object@tools[["SUNLouvainPath"]] <- result
+    if (ranges$r_max != "Inf") {
+        message("Resolution range used: [0, ", ranges$r_max, "] (r_max = ", limit_text, ").")
+    }
     object
 }

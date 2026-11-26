@@ -218,3 +218,92 @@ if (requireNamespace("Seurat", quietly = TRUE)) {
         }
     }
 }
+
+# Splitting the parameter axis must preserve every public result table,
+# including its ordering, re-used partition IDs, open boundaries, and ties.
+result_names <- c("partitions", "intervals", "scores", "recommendation")
+same_path <- function(x, y) identical(x[result_names], y[result_names])
+point_obj <- make_object(from_sets(sets))
+serial <- tool(EnumerateLouvain(point_obj, k = 3L, split_points = numeric(), workers = 1L))
+fragments <- c("1/7", "108/95", "3/2", "5/2")
+parallel_path <- tool(EnumerateLouvain(point_obj, k = 3L, split_points = fragments,
+                                       workers = 2L))
+stopifnot(same_path(point, serial), same_path(serial, parallel_path),
+          identical(point$settings$split_points, c("1/2", "1", "2")),
+          identical(serial$settings$workers, 1L), identical(parallel_path$settings$workers, 2L))
+
+# Check against the original unrestricted C++ scanner as an independent
+# reference for splitting and stitching (the moving rules are shared).
+edges <- Matrix::summary(Matrix::drop0(Matrix::triu(point_obj[["RNA_snn"]], k = 1L)))
+values <- unique(edges$x)
+old <- SUNLouvainPath:::enumerate_path_cpp(6L, edges$i, edges$j, match(edges$x, values),
+                                         values, round(6 * values / (1 + values)), 3L)
+ids <- paste0("P", seq_len(ncol(old$membership)))
+old_intervals <- old$intervals
+old_intervals$partition <- ids[old_intervals$partition]
+old_rec <- old$recommendation
+old_rec$partition <- ids[old_rec$partition]
+old_rec$representative_partition <- ids[old_rec$representative_partition]
+stopifnot(identical(unname(as.matrix(serial$partitions[-1L])), unname(old$membership)),
+          identical(serial$intervals[names(old_intervals)], old_intervals),
+          identical(serial$scores[names(old$scores)], old$scores),
+          identical(serial$recommendation, old_rec))
+
+# At 108/95 the partition differs from *both* adjacent open intervals. A
+# finite closed range ending at that split must include the point just once.
+messages <- capture.output(bounded <- tool(EnumerateLouvain(point_obj, k = 3L,
+    split_points = fragments, r_max = "108/95", workers = 2L)), type = "message")
+z <- bounded$intervals
+last <- nrow(z)
+stopifnot(any(grepl("108/95", messages, fixed = TRUE)),
+          z$lower[last] == "108/95", z$upper[last] == "108/95",
+          z$lower_closed[last], z$upper_closed[last],
+          sum(z$lower == "108/95" & z$upper == "108/95") == 1L,
+          identical(at_r(bounded, 108, 95), at_r(serial, 108, 95)),
+          identical(at_r(bounded, 1, 1), at_r(serial, 1, 1)),
+          bad(at_r(bounded, 109, 95)))
+
+# A numeric cap inside a constant interval becomes a closed upper boundary.
+# On this graph the first transition is 5/4, so [0,1] has one partition
+# even though the default splits include an interior cut at 0.5.
+messages <- capture.output(short <- tool(EnumerateLouvain(o, k = 2L,
+    split_points = c(2, 1, 0.5, 0, 0.5), r_max = 1, workers = 1L)), type = "message")
+stopifnot(length(messages) > 0L, nrow(short$intervals) == 1L,
+          identical(short$settings$split_points, "1/2"), identical(short$settings$r_max, "1"),
+          short$intervals$lower == "0", short$intervals$upper == "1",
+          short$intervals$lower_closed, short$intervals$upper_closed)
+
+# Infinity remains silent and [0,0] runs exactly one point, including when
+# the full path's first optimal interval has a positive, unattained infimum.
+open_obj <- make_object(from_sets(rbind(c(1,2,5),c(2,5,6),c(1,3,5),
+                                         c(1,4,5),c(2,3,5),c(2,5,6))))
+messages <- capture.output(unbounded <- tool(EnumerateLouvain(open_obj,
+    k = 3L, r_max = Inf, split_points = numeric(), workers = 1L)), type = "message")
+stopifnot(!length(messages), same_path(unbounded, open))
+limited <- tool(suppressMessages(EnumerateLouvain(open_obj, k = 3L,
+    split_points = c("65/66", "99/100"), r_max = 1, workers = 2L)))
+rec <- limited$recommendation
+witness <- as.numeric(strsplit(rec$representative_resolution, "/", fixed = TRUE)[[1L]])
+if (length(witness) == 1L) witness[2L] <- 1
+stopifnot(rec$status == "open_infimum", rec$infimum == "65/66",
+          witness[1] * 66 > witness[2] * 65, witness[1] <= witness[2],
+          identical(at_r(limited, witness[1], witness[2]),
+                    limited$partitions[[rec$representative_partition]]))
+messages <- capture.output(zero <- tool(EnumerateLouvain(open_obj, k = 3L,
+    r_max = 0, workers = 4L)), type = "message")
+stopifnot(length(messages) > 0L, nrow(zero$intervals) == 1L,
+          identical(zero$settings$workers, 1L),
+          zero$intervals$lower == "0", zero$intervals$upper == "0",
+          zero$intervals$lower_closed, zero$intervals$upper_closed,
+          nrow(zero$scores) == 1L, zero$scores$is_max,
+          zero$recommendation$recommended_resolution == "0",
+          identical(at_r(zero, 0, 1), at_r(unbounded, 0, 1)))
+
+cycle_serial <- tool(EnumerateLouvain(make_object(cycle), weights = "stored",
+    split_points = numeric(), workers = 1L))
+stopifnot(same_path(ties, cycle_serial), sum(cycle_serial$scores$is_max) > 1L,
+          bad(EnumerateLouvain(o, workers = 0L)), bad(EnumerateLouvain(o, workers = 1.5)),
+          bad(EnumerateLouvain(o, r_max = -1)), bad(EnumerateLouvain(o, r_max = NA_real_)),
+          bad(EnumerateLouvain(o, split_points = c(0.5, NA_real_))),
+          bad(EnumerateLouvain(o, split_points = c(1, Inf))),
+          bad(EnumerateLouvain(o, split_points = -1)))

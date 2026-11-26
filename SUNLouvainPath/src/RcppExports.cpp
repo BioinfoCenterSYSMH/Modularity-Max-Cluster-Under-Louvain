@@ -10,12 +10,60 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// resolution_ranges_cpp
+Rcpp::List resolution_ranges_cpp(Rcpp::CharacterVector split_points, std::string r_max);
+RcppExport SEXP _SUNLouvainPath_resolution_ranges_cpp(SEXP split_pointsSEXP, SEXP r_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type split_points(split_pointsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type r_max(r_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(resolution_ranges_cpp(split_points, r_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// enumerate_interval_cpp
+Rcpp::List enumerate_interval_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, std::string lower, std::string upper, bool include_upper);
+RcppExport SEXP _SUNLouvainPath_enumerate_interval_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP include_upperSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type overlap(overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< std::string >::type lower(lowerSEXP);
+    Rcpp::traits::input_parameter< std::string >::type upper(upperSEXP);
+    Rcpp::traits::input_parameter< bool >::type include_upper(include_upperSEXP);
+    rcpp_result_gen = Rcpp::wrap(enumerate_interval_cpp(n, i, j, type, values, overlap, k, lower, upper, include_upper));
+    return rcpp_result_gen;
+END_RCPP
+}
+// enumerate_parallel_cpp
+Rcpp::List enumerate_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Rcpp::CharacterVector split_points, std::string r_max, int workers);
+RcppExport SEXP _SUNLouvainPath_enumerate_parallel_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP, SEXP split_pointsSEXP, SEXP r_maxSEXP, SEXP workersSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type overlap(overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type split_points(split_pointsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type r_max(r_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type workers(workersSEXP);
+    rcpp_result_gen = Rcpp::wrap(enumerate_parallel_cpp(n, i, j, type, values, overlap, k, split_points, r_max, workers));
+    return rcpp_result_gen;
+END_RCPP
+}
 // enumerate_path_cpp
 Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k);
 RcppExport SEXP _SUNLouvainPath_enumerate_path_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
@@ -29,6 +77,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_SUNLouvainPath_resolution_ranges_cpp", (DL_FUNC) &_SUNLouvainPath_resolution_ranges_cpp, 2},
+    {"_SUNLouvainPath_enumerate_interval_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_interval_cpp, 10},
+    {"_SUNLouvainPath_enumerate_parallel_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_parallel_cpp, 10},
     {"_SUNLouvainPath_enumerate_path_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_path_cpp, 7},
     {NULL, NULL, 0}
 };
