@@ -1,8 +1,8 @@
 # MML — Maximum Modularity in Louvain
 
-**固定一张细胞图，只改变分辨率 $r$，Louvain 到底能给出哪些分群？** MML 能在多项式时间内列出所有可能的最终划分，覆盖从零到正无穷的全部非负实数分辨率，包括只在某一个临界点出现的划分。它给每种划分计算同一个经典 Newman–Girvan 模块度 $Q$，并列出全部最高分方案。如果目标是从这些可达划分中取得最高经典模块度，就可以直接用 MML 得到答案，无须人工调节分辨率。
+**固定一张细胞图，只改变分辨率 $r$，Louvain 到底能给出哪些分群？** MML 能在多项式时间内列出所有可能的最终划分，覆盖从零到正无穷的全部非负实数分辨率，包括只在某一个临界点出现的划分。它给每种划分计算同一个经典 Newman–Girvan 模块度 $Q$，并列出全部最高分方案。如果目标是从这些可达划分中取得经典模块度或其他分群评价指标的最大值，就无须人工调节分辨率。MML 直接给出经典模块度的最大值。对于其他指标，可以按同一标准给每个可达划分评分，再取最大值。
 
-**Which partitions can Louvain return if only the resolution changes?** MML enumerates every distinct final partition attainable at any real resolution $r\geq 0$ in polynomial time, including partitions attained at a single critical value. It scores each partition by the same classical Newman–Girvan modularity $Q$ and returns every maximizer. This removes the need for manual resolution tuning when the goal is the highest classical modularity among these outputs.
+**Which partitions can Louvain return if only the resolution changes?** MML enumerates every distinct final partition attainable at any real resolution $r\geq 0$ in polynomial time, including partitions attained at a single critical value. It scores each partition by the same classical Newman–Girvan modularity $Q$ and returns every maximizer. If the goal is to maximize classical modularity or another clustering evaluation metric over these reachable partitions, there is no need to tune the resolution by hand. For another metric, score each enumerated partition by that metric and take the maximum.
 
 这个结论适用于近邻数 $k$ 固定的 Jaccard 共享近邻图（SNN）。给定同一张图，从每个细胞各自成群出发，固定细胞访问顺序、移动与收缩规则、平局规则，只接受严格改善目标的移动。经典 $Q$ 的比较要求图的总边权为正。
 
