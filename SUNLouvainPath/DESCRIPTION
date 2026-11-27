@@ -1,7 +1,7 @@
 Package: SUNLouvainPath
 Type: Package
-Title: Enumerate Deterministic Louvain Partitions on Seurat Graphs
-Version: 0.3.0
+Title: MML Exact Enumeration of Deterministic Louvain Partitions on Seurat Graphs
+Version: 0.3.1.9001
 Authors@R: c(
     person("Junbo", "Wang", role = c("aut", "cre"),
            email = "99457639+SYSUWangJunbo@users.noreply.github.com",
@@ -9,8 +9,9 @@ Authors@R: c(
     person("Jianyou", "Liao", role = "aut", comment = "廖建友"),
     person("GPT-6.2 Astra", role = "ctb", comment = "Development assistance"))
 Description: Follows exact comparisons in a deterministic multilevel Louvain
-    algorithm across the requested nonnegative resolution range. Searches
-    disjoint intervals in parallel and stores distinct partitions
+    algorithm across the requested nonnegative resolution range. Detects
+    connected components, reuses certified decisions at adjacent resolutions,
+    searches disjoint intervals in parallel and stores distinct partitions
     and their resolution intervals in a Seurat object's tools slot. Ranks the
     final partitions by classical Newman-Girvan modularity and reports
     the earliest resolution attaining its maximum when a minimum exists.

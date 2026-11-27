@@ -28,24 +28,78 @@ struct Network {
     }
 };
 
-struct Trace {
-    Integer num, den;
-    bool right;
+// The stored choices precede the first visit whose winner can change at
+// the next crossing. Their own first future crossing remains a constraint
+// on every subsequent trace that reuses this prefix.
+struct Prefix {
+    Labels choices;
     Integer next_num = 0, next_den = 0;
-    Trace(const Rational& start, bool right_limit)
-        : num(numerator(start)), den(denominator(start)), right(right_limit) {}
+    bool end_closed = true;
+};
 
-    // At an exact tie, the smaller penalty wins immediately to the right.
-    int compare(const Integer& a, const Integer& b) const {
-        Integer delta = a * den - b * num;
-        if (delta != 0) return delta.sign();
-        return right ? -b.sign() : 0;
+struct Trace {
+    const Prefix& inherited;
+    const Integer& total;
+    Integer num, den;
+    bool right, start_closed = true, end_closed = true;
+    Integer next_num = 0, next_den = 0;
+
+    Labels choices;
+    std::size_t visit = 0, prefix_length = 0;
+    std::size_t last_recorded_visit = std::numeric_limits<std::size_t>::max();
+    bool closed_before_visit = true, prefix_closed = true;
+    Integer prefix_num = 0, prefix_den = 0;
+    // Limit move history per vector and worker. Beyond this length the
+    // scanner recomputes a visit normally.
+    static constexpr std::size_t choice_limit = 4 * 1024 * 1024;
+
+    Trace(const Rational& start, bool right_limit, const Prefix& prefix, const Integer& weight)
+        : inherited(prefix), total(weight), right(right_limit) {
+        // In rho=r/(2W), all gain comparisons share a smaller integer scale.
+        const Rational rho = total == 0 ? Rational(0) :
+            Rational(numerator(start), denominator(start) * total);
+        num = numerator(rho);
+        den = denominator(rho);
+        if (right) {
+            next_num = prefix.next_num;
+            next_den = prefix.next_den;
+            end_closed = prefix.end_closed;
+        }
     }
 
-    // Only a challenger with a smaller penalty can overtake the winner.
-    // Save unreduced fractions here. A gcd is needed only for the final bound.
-    void constrain(const Integer& a, const Integer& b) {
-        if (next_den == 0 || a * next_den < next_num * b) {
+    void finish_visit(int target) {
+        if (right && choices.size() < choice_limit) choices.push_back(target);
+        ++visit;
+    }
+
+    Prefix take_prefix() {
+        if (prefix_length == 0) return {};
+        choices.resize(prefix_length);
+        return {std::move(choices), std::move(prefix_num), std::move(prefix_den), prefix_closed};
+    }
+
+    // At an exact tie, the smaller penalty wins immediately to the right.
+    int compare(const Integer& links, const Integer& volumes, const Integer& scaled_degree,
+                int& at_point) const {
+        const Integer delta = links * den - volumes * scaled_degree;
+        at_point = delta.sign();
+        return at_point != 0 || !right ? at_point : -volumes.sign();
+    }
+
+    // Keep the earliest crossing, with its deterministic tie decision. The
+    // snapshot predates the entire visit, including other tied challengers.
+    void constrain(const Integer& a, const Integer& b, bool wins_tie) {
+        const int order = next_den == 0 ? -1 : Integer(a * next_den).compare(Integer(next_num * b));
+        if (order == 0) end_closed = end_closed && wins_tie;
+        if (order < 0) {
+            if (last_recorded_visit != visit) {
+                last_recorded_visit = visit;
+                prefix_length = visit <= choice_limit ? visit : 0;
+                prefix_closed = closed_before_visit;
+                prefix_num = next_num;
+                prefix_den = next_den;
+            }
+            end_closed = wins_tie;
             next_num = a;
             next_den = b;
         }
@@ -53,16 +107,18 @@ struct Trace {
 
     std::optional<Rational> next() const {
         if (next_den == 0) return std::nullopt;
-        return Rational(next_num, next_den);
+        return Rational(total * next_num, next_den);
     }
 };
 
-Labels move_units(const Network& g, const Integer& twice_weight, Trace& trace) {
+Labels move_units(const Network& g, Trace& trace) {
     int n = static_cast<int>(g.volume.size());
     Labels group(n);
     std::iota(group.begin(), group.end(), 0);
     std::vector<Integer> volume = g.volume;
     std::vector<Integer> links(n);
+    std::vector<Integer> scaled_degree(n);
+    for (int u = 0; u < n; ++u) scaled_degree[u] = g.volume[u] * trace.num;
     std::vector<bool> active(n, false);
     Labels targets;
     targets.reserve(n);
@@ -72,6 +128,18 @@ Labels move_units(const Network& g, const Integer& twice_weight, Trace& trace) {
         changed = false;
         for (int u = 0; u < n; ++u) {
             const int source = group[u];
+            trace.closed_before_visit = trace.end_closed;
+            if (trace.visit < trace.inherited.choices.size()) {
+                int best = trace.inherited.choices[trace.visit];
+                if (best != source) {
+                    volume[source] -= g.volume[u];
+                    volume[best] += g.volume[u];
+                    group[u] = best;
+                    changed = true;
+                }
+                trace.finish_visit(best);
+                continue;
+            }
             targets.clear();
             targets.push_back(source);
             active[source] = true;
@@ -84,21 +152,30 @@ Labels move_units(const Network& g, const Integer& twice_weight, Trace& trace) {
                 links[target] += w;
             }
             volume[source] -= g.volume[u];
-            int best = source;
+            int best = source, point_best = source;
             for (int target : targets) {
                 if (target == source) continue;
-                Integer a = twice_weight * (links[target] - links[best]);
-                Integer b = g.volume[u] * (volume[target] - volume[best]);
-                int order = trace.compare(a, b);
+                Integer a = links[target] - links[best];
+                Integer b = volume[target] - volume[best];
+                int at_point;
+                int order = trace.compare(a, b, scaled_degree[u], at_point);
+                // The point winner and the right winner among all previously
+                // visited candidates have equal values at the exact point.
+                if (trace.right && trace.start_closed &&
+                    (at_point > 0 || (at_point == 0 && point_best != source && target < point_best))) {
+                    point_best = target;
+                }
                 if (order > 0 || (order == 0 && best != source && target < best)) {
                     best = target;
                 }
             }
             if (trace.right) {
+                trace.start_closed = trace.start_closed && (point_best == best);
                 for (int target : targets) {
                     if (volume[best] > volume[target]) {
-                        trace.constrain(twice_weight * (links[best] - links[target]),
-                                        g.volume[u] * (volume[best] - volume[target]));
+                        trace.constrain(links[best] - links[target],
+                                        g.volume[u] * (volume[best] - volume[target]),
+                                        best == source || (target != source && best < target));
                     }
                 }
             }
@@ -109,6 +186,7 @@ Labels move_units(const Network& g, const Integer& twice_weight, Trace& trace) {
             volume[best] += g.volume[u];
             group[u] = best;
             if (best != source) changed = true;
+            trace.finish_visit(best);
         }
     } while (changed);
     // Canonicalize in vertex order. Contracted units are therefore always
@@ -133,13 +211,13 @@ Network contract(const Network& g, const Labels& group, int count) {
     return coarse;
 }
 
-Labels run(const Network& original, const Integer& twice_weight, Trace& trace) {
+Labels run(const Network& original, Trace& trace) {
     Labels labels(original.volume.size());
     std::iota(labels.begin(), labels.end(), 0);
     const Network* current = &original;
     Network coarse(0);
     for (;;) {
-        Labels group = move_units(*current, twice_weight, trace);
+        Labels group = move_units(*current, trace);
         int count = 1 + *std::max_element(group.begin(), group.end());
         for (int& label : labels) label = group[label];
         if (count == static_cast<int>(group.size())) return labels;
@@ -333,19 +411,45 @@ IntervalData scan_interval(const Network& graph, const Integer& total, Rational 
         return ids.try_emplace(std::move(labels), static_cast<int>(ids.size()) + 1).first->second;
     };
     IntervalData block;
+    Prefix previous;
+    int previous_id = 0;
+    bool previous_closed = false;
     for (;;) {
         poll_path_interrupt();
         const std::string here = start.str();
-        Trace point(start, false);
-        append(block.segments, id_for(run(graph, total, point)), here, here, true, true);
-        if (limit && start == *limit) break;
-        Trace after(start, true);
-        int id = id_for(run(graph, total, after));
+        auto exact_point_id = [&]() {
+            Trace point(start, false, previous, total);
+            return id_for(run(graph, point));
+        };
+        if (limit && start == *limit) {
+            const int point_id = previous_closed ? previous_id : exact_point_id();
+            append(block.segments, point_id, here, here, true, true);
+            break;
+        }
+
+        Trace after(start, true, previous, total);
+        Labels after_labels = run(graph, after);
+        // Assign IDs in point-then-interval order, including when only the
+        // exact point yields a third, distinct partition.
+        int point_id;
+        int id;
+        if (previous_closed || !after.start_closed) {
+            point_id = previous_closed ? previous_id : exact_point_id();
+            id = id_for(std::move(after_labels));
+        } else {
+            id = id_for(std::move(after_labels));
+            point_id = id;
+        }
+        append(block.segments, point_id, here, here, true, true);
         auto next = after.next();
+        previous = after.take_prefix();
+        previous_id = id;
+        previous_closed = after.end_closed;
         // A right trace certifies the open interval up to the next crossing or the cut.
         if (limit && (!next || *next >= *limit)) {
             append(block.segments, id, here, limit->str(), false, false);
             if (!include_upper) break;
+            if (!next || *next > *limit) previous_closed = true;
             start = *limit;
             continue;
         }
@@ -384,6 +488,8 @@ IntervalData merge_intervals(std::vector<IntervalData> blocks) {
     result.partitions = take_partitions(index);
     return result;
 }
+
+#include "structural.h"
 
 Rcpp::List to_r(const IntervalData& path, const Integer& total) {
     const std::size_t count = path.partitions.size();
@@ -453,7 +559,10 @@ Rcpp::List enumerate_interval_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVec
     }
     Integer total = 0;
     auto graph = build_graph(n, i, j, type, values, overlap, k, total);
-    return to_r(scan_interval(graph, total, start, limit, include_upper), total);
+    const StructuralPlan plan(graph, total);
+    Rcpp::List result = to_r(plan.scan(start, limit, include_upper), total);
+    result["search_plan"] = plan.metadata();
+    return result;
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -467,12 +576,15 @@ Rcpp::List enumerate_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVec
     if (workers < 1) Rcpp::stop("workers must be a positive integer.");
     Integer total = 0;
     auto graph = build_graph(n, i, j, type, values, overlap, k, total);
+    const StructuralPlan plan(graph, total);
     auto blocks = map_intervals(starts.size(), workers, [&](std::size_t idx) {
         bool last = idx + 1 == starts.size();
         auto end = last ? limit : std::optional<Rational>(starts[idx + 1]);
-        return scan_interval(graph, total, starts[idx], end, last && limit.has_value());
+        return plan.scan(starts[idx], end, last && limit.has_value());
     });
-    return to_r(merge_intervals(std::move(blocks)), total);
+    Rcpp::List result = to_r(merge_intervals(std::move(blocks)), total);
+    result["search_plan"] = plan.metadata();
+    return result;
 }
 
 // [[Rcpp::export(rng = false)]]

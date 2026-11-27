@@ -1,0 +1,33 @@
+{
+  "package_version": "0.3.1.9001",
+  "cells": 498,
+  "distinct_partitions": 975,
+  "resolution_segments": 992,
+  "search_plan": {
+    "mode": "components",
+    "n_components": 3,
+    "component_sizes": [392, 51, 55],
+    "n_edges": 14224,
+    "singleton_tail_start": "969733184866841629522288/12188877810363731146785"
+  },
+  "highest_Q": [
+    {
+      "partition": "P6",
+      "n_clusters": 8,
+      "modularity": 0.8633487418634047,
+      "modularity_exact": "1664899307519569675301150434596827/1928420378451171595043044210689800",
+      "is_max": true
+    }
+  ],
+  "recommendation": [
+    {
+      "status": "minimum_attained",
+      "recommended_resolution": "2272367393951537627722144038300/42458312276818542346106730755599",
+      "recommended_resolution_numeric": 0.05351996516338706,
+      "partition": "P6",
+      "infimum": "2272367393951537627722144038300/42458312276818542346106730755599",
+      "representative_resolution": "2272367393951537627722144038300/42458312276818542346106730755599",
+      "representative_partition": "P6"
+    }
+  ]
+}

@@ -57,9 +57,11 @@ After a sweep with no moves, communities are contracted, preserving their
 weighted volumes. No singleton reassignment or random restarts are applied.
 Seurat's \code{FindClusters()} has its own ordering and postprocessing.
 
-Exact integer arithmetic tracks changes in affine move comparisons. Runs
-at a boundary and at its symbolic right-hand limit separately handle exact
-ties. For each move, compare the chosen target with every eligible challenger.
+Exact integer arithmetic tracks changes in affine move comparisons. At a
+boundary the engine reuses an adjacent trajectory when its move choices also
+win under the boundary tie rules. Otherwise it evaluates the exact point.
+Successive trajectories may reuse a prefix of certified moves.
+For each newly evaluated move, compare the chosen target with every eligible challenger.
 The earliest possible overtake anywhere on the latter run certifies
 the open interval before that root. Each interval starts from the same
 original graph with the same vertex order. The default intervals are
@@ -71,6 +73,11 @@ Outputs are merged in resolution order. Identical partitions receive one
 ID, adjacent pieces with the same output are coalesced, and exact scores
 determine all tied maximizers across the search range.
 On large graphs, time and output size can be substantial.
+
+Connected components retain the original relative vertex order and share the
+full graph's weight scale. Isolated vertices and disjoint cell pairs have
+closed-form paths. The exact start of the all-singleton tail is computed
+from the original graph, independently of the requested range.
 }
 \value{
 The returned Seurat object contains \code{object@tools[["SUNLouvainPath"]]}.
@@ -96,7 +103,11 @@ This result can also be accessed with
 The \code{settings} list stores the selected graph, vertex order, weight
 interpretation, effective \code{split_points}, actual \code{r_max} and
 number of enumeration threads used (\code{workers}). The effective boundaries
-are returned as exact strings. Repeating the call replaces this tool's result
+are returned as exact strings. Within \code{settings}, \code{search_plan}
+reports the mode (\code{edgeless}, \code{matching}, \code{components}, or
+\code{connected}), \code{n_components}, \code{component_sizes} in order of
+the earliest cell, the off-diagonal edge count \code{n_edges}, and the exact
+inclusive \code{singleton_tail_start}. Repeating the call replaces this tool's result
 in the returned object.
 }
 \references{

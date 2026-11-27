@@ -125,7 +125,7 @@ EnumerateLouvain <- function(object, graph = NULL, k = NULL,
                         k_supplied = k, vertex_order = vertices,
                         diagonal = "ignored", algorithm = "SUNLouvainPath-0.1",
                         split_points = ranges$split_points, r_max = ranges$r_max,
-                        workers = n_workers,
+                        workers = n_workers, search_plan = path$search_plan,
                         package_version = as.character(utils::packageVersion("SUNLouvainPath")))
     )
     object@tools[["SUNLouvainPath"]] <- result
