@@ -21,7 +21,8 @@ VerifyLouvainExample <- function(dataset = c("ten_cells", "hesc")) {
     if (!is.null(input$annotation)) {
         object$reference_annotation <- input$annotation
     }
-    object <- EnumerateLouvain(object, graph = "RNA_snn", k = input$k, weights = "jaccard")
+    object <- EnumerateLouvain(object, graph = "RNA_snn", k = input$k,
+                               weights = "jaccard", max_clusters = Inf)
     observed <- SeuratObject::Tool(object, slot = "SUNLouvainPath")
     expected <- read_fixture("expected")
     compare <- function(value, reference, item) {

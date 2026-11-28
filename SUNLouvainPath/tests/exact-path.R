@@ -307,3 +307,107 @@ stopifnot(same_path(ties, cycle_serial), sum(cycle_serial$scores$is_max) > 1L,
           bad(EnumerateLouvain(o, split_points = c(0.5, NA_real_))),
           bad(EnumerateLouvain(o, split_points = c(1, Inf))),
           bad(EnumerateLouvain(o, split_points = -1)))
+
+# Compare a finite cluster cap with a complete, uncapped path. Match columns
+# by cell membership so IDs can be renumbered after excluded partitions drop.
+compare_cluster_cap <- function(full, capped, k) {
+    keys <- function(p) vapply(p[-1], paste, collapse = ",", FUN.VALUE = "")
+    full_keys <- keys(full$partitions)
+    capped_keys <- keys(capped$partitions)
+    keep <- full$scores$n_clusters <= k
+    stopifnot(identical(unname(capped_keys), unname(full_keys[keep])),
+              identical(capped$partitions$cell, full$partitions$cell),
+              identical(capped$scores$n_clusters, full$scores$n_clusters[keep]),
+              identical(capped$scores$modularity_exact, full$scores$modularity_exact[keep]))
+    retained <- full$intervals[full$intervals$n_clusters <= k, , drop = FALSE]
+    observed <- capped$intervals
+    retained$partition <- unname(full_keys[retained$partition])
+    observed$partition <- unname(capped_keys[observed$partition])
+    rownames(retained) <- NULL
+    rownames(observed) <- NULL
+    stopifnot(identical(observed, retained))
+}
+capped_run <- function(object, ..., workers = 1L) {
+    tool(suppressMessages(EnumerateLouvain(object, ..., workers = workers)))
+}
+stopifnot(formals(EnumerateLouvain)$max_clusters == 101,
+          serial$settings$max_clusters == 101)
+for (invalid in list(0, -1, -Inf, 1.5, NA_real_, NaN, c(1, 2), "100", TRUE,
+                     matrix(2, 1, 1))) {
+    stopifnot(bad(EnumerateLouvain(o, max_clusters = invalid)))
+}
+unlimited <- capped_run(point_obj, k = 3L, max_clusters = Inf)
+stopifnot(is.infinite(unlimited$settings$max_clusters), same_path(serial, unlimited))
+for (k_max in c(1L, 2L, 3L, 5L, 6L, 100L)) {
+    for (w_count in 1:2) {
+        limited <- capped_run(point_obj, k = 3L, max_clusters = k_max,
+                              split_points = fragments, workers = w_count)
+        compare_cluster_cap(unlimited, limited, k_max)
+    }
+}
+
+# Exactly at 108/95 there are three groups; both neighboring intervals have
+# the same two-group membership. A cap of two leaves a one-point hole.
+holes <- capped_run(point_obj, k = 3L, max_clusters = 2L, workers = 2L)
+left <- subset(holes$intervals, upper == "108/95")
+right <- subset(holes$intervals, lower == "108/95")
+stopifnot(nrow(left) == 1L, nrow(right) == 1L,
+          !left$upper_closed, !right$lower_closed, left$partition == right$partition)
+for (k_max in 2:3) {
+    limited <- capped_run(point_obj, k = 3L, r_max = "108/95", max_clusters = k_max)
+    compare_cluster_cap(bounded, limited, k_max)
+}
+
+# The unrestricted maximizer is first attained just above 65/66 and has two
+# groups. With one allowed group the maximizer moves back to r=0.
+one_group <- capped_run(open_obj, k = 3L, max_clusters = 1)
+stopifnot(nrow(one_group$scores) == 1L, one_group$scores$is_max,
+          one_group$scores$modularity_exact == "0",
+          one_group$recommendation$status == "minimum_attained",
+          one_group$recommendation$recommended_resolution == "0",
+          one_group$recommendation$partition == one_group$scores$partition)
+two_groups <- capped_run(open_obj, k = 3L, max_clusters = 2)
+stopifnot(two_groups$recommendation$status == "open_infimum",
+          two_groups$recommendation$infimum == "65/66",
+          two_groups$recommendation$representative_partition %in%
+              two_groups$scores$partition[two_groups$scores$is_max])
+
+# On the complete four-cell graph all moves gain exactly zero at 4/3.
+# A finite certificate ends open, even when the user requests that exact
+# endpoint. Smaller user limits remain closed, including a zero-length range.
+complete <- make_object(matrix(1, 4, 4))
+for (upper in list(Inf, "4/3")) {
+    ans <- capped_run(complete, weights = "stored", max_clusters = 1L, r_max = upper)
+    plan <- ans$settings$search_plan
+    stopifnot(plan$cluster_bound == "4/3", plan$scan_r_max == "4/3",
+              identical(plan$scan_upper_closed, FALSE),
+              ans$intervals$lower == "0", ans$intervals$upper == "4/3",
+              !ans$intervals$upper_closed)
+}
+for (upper in c("0", "1/2")) {
+    ans <- capped_run(complete, weights = "stored", max_clusters = 1L, r_max = upper)
+    stopifnot(ans$settings$search_plan$scan_r_max == upper,
+              ans$intervals$lower == "0", ans$intervals$upper == upper,
+              ans$intervals$lower_closed, ans$intervals$upper_closed)
+}
+
+# Here n_eff = 10^2 / (5^2 + 5) = 10/3, so the degree certificate for
+# K=4 is inapplicable. The same membership and interval guarantees hold.
+star <- diag(1, 6)
+star[1, 2:6] <- star[2:6, 1] <- 1
+star <- make_object(star)
+compare_cluster_cap(capped_run(star, max_clusters = Inf),
+                    capped_run(star, max_clusters = 4L, workers = 2L), 4L)
+
+# A graph with one edge and one isolated cell requires at least two groups.
+# The output keeps the object's cell rows even when every candidate is excluded.
+with_isolate <- diag(1, 3)
+with_isolate[1, 2] <- with_isolate[2, 1] <- 1
+for (graph in list(with_isolate, diag(1, 3))) {
+    none <- capped_run(make_object(graph), max_clusters = 1L)
+    stopifnot(identical(names(none$partitions), "cell"), nrow(none$partitions) == 3L,
+              nrow(none$intervals) == 0L, nrow(none$scores) == 0L,
+              none$recommendation$status == "no_eligible_partition",
+              is.na(none$recommendation$partition),
+              is.na(none$recommendation$representative_partition))
+}

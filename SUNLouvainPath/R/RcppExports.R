@@ -13,7 +13,19 @@ enumerate_parallel_cpp <- function(n, i, j, type, values, overlap, k, split_poin
     .Call(`_SUNLouvainPath_enumerate_parallel_cpp`, n, i, j, type, values, overlap, k, split_points, r_max, workers)
 }
 
+enumerate_capped_parallel_cpp <- function(n, i, j, type, values, overlap, k, split_points, r_max, workers, max_clusters) {
+    .Call(`_SUNLouvainPath_enumerate_capped_parallel_cpp`, n, i, j, type, values, overlap, k, split_points, r_max, workers, max_clusters)
+}
+
 enumerate_path_cpp <- function(n, i, j, type, values, overlap, k) {
     .Call(`_SUNLouvainPath_enumerate_path_cpp`, n, i, j, type, values, overlap, k)
+}
+
+seurat_results_cpp <- function(n, i, j, type, values, overlap, k, raw, intervals, group_singletons, cap, points, r_max, fxn, sample_tie) {
+    .Call(`_SUNLouvainPath_seurat_results_cpp`, n, i, j, type, values, overlap, k, raw, intervals, group_singletons, cap, points, r_max, fxn, sample_tie)
+}
+
+seurat_path_cpp <- function(n, i, j, type, values, overlap, k, split_points, r_max, workers, algorithm, modularity_fxn, n_start, n_iter, random_seed) {
+    .Call(`_SUNLouvainPath_seurat_path_cpp`, n, i, j, type, values, overlap, k, split_points, r_max, workers, algorithm, modularity_fxn, n_start, n_iter, random_seed)
 }
 

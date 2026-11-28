@@ -1,5 +1,6 @@
 #include <Rcpp.h>
 #include "interval_threads.h"
+#include "path_common.h"
 #include <boost/multiprecision/cpp_int.hpp>
 #include <algorithm>
 #include <cmath>
@@ -11,9 +12,7 @@
 #include <vector>
 
 namespace {
-using Integer = boost::multiprecision::cpp_int;
-using Rational = boost::multiprecision::cpp_rational;
-using Labels = std::vector<int>;
+using namespace mml_path_common;
 using Neighbours = std::map<int, Integer>;
 
 // Cross-unit edges are stored twice. A unit's volume retains the contribution
@@ -226,22 +225,6 @@ Labels run(const Network& original, Trace& trace) {
     }
 }
 
-struct Segment {
-    int id;
-    std::string lower, upper;
-    bool left_closed, right_closed;
-};
-
-void append(std::vector<Segment>& segments, int id, const std::string& lower,
-            const std::string& upper, bool left_closed, bool right_closed) {
-    if (!segments.empty() && segments.back().id == id) {
-        segments.back().upper = upper;
-        segments.back().right_closed = right_closed;
-    } else {
-        segments.push_back({id, lower, upper, left_closed, right_closed});
-    }
-}
-
 // All partitions share the denominator (2W)^2, so their integer numerators
 // determine both the maximum and exact ties, even for stored binary weights.
 Integer classic_score(const Network& graph, const Labels& labels, const Integer& twice_weight) {
@@ -260,7 +243,8 @@ Integer classic_score(const Network& graph, const Labels& labels, const Integer&
 
 Rcpp::DataFrame recommend(const std::vector<Segment>& segments,
                           const Rcpp::LogicalVector& is_best) {
-    Rcpp::CharacterVector status(1, "undefined_modularity"), infimum(1, NA_STRING),
+    Rcpp::CharacterVector status(1, segments.empty() ? "no_eligible_partition" : "undefined_modularity"),
+        infimum(1, NA_STRING),
         minimum(1, NA_STRING), witness(1, NA_STRING);
     Rcpp::IntegerVector partition(1, NA_INTEGER), witness_partition(1, NA_INTEGER);
     Rcpp::NumericVector approximate(1, NA_REAL);
@@ -291,94 +275,13 @@ Rcpp::DataFrame recommend(const std::vector<Segment>& segments,
         Rcpp::_["representative_partition"] = witness_partition);
 }
 
-// Decimal user inputs are base ten, including values with leading zeroes.
-// Boost's integer string constructor otherwise treats leading zeroes as octal.
-Integer decimal_integer(const std::string& digits) {
-    if (digits.empty() || digits.find_first_not_of("0123456789") != std::string::npos) {
-        Rcpp::stop("Resolutions must be nonnegative numbers or integer fractions.");
-    }
-    auto begin = digits.find_first_not_of('0');
-    return begin == std::string::npos ? Integer(0) : Integer(digits.substr(begin));
-}
-
-Rational resolution(const std::string& input) {
-    bool negative = !input.empty() && input[0] == '-';
-    std::string text = input.substr(!input.empty() && (input[0] == '+' || negative) ? 1 : 0);
-    std::size_t slash = text.find('/');
-    if (slash != std::string::npos) {
-        Integer num = decimal_integer(text.substr(0, slash));
-        Integer den = decimal_integer(text.substr(slash + 1));
-        if (negative && num != 0) Rcpp::stop("Resolutions cannot be negative.");
-        if (den == 0) Rcpp::stop("A resolution fraction must have a positive denominator.");
-        return Rational(num, den);
-    }
-
-    // Expanding a short exponent such as 1e999999999 into an integer would
-    // otherwise allocate hundreds of MB before the input could be validated.
-    long long exponent = 0;
-    std::size_t e = text.find_first_of("eE");
-    if (e != std::string::npos) {
-        std::string suffix = text.substr(e + 1);
-        text.resize(e);
-        bool down = !suffix.empty() && suffix[0] == '-';
-        if (down || (!suffix.empty() && suffix[0] == '+')) suffix.erase(0, 1);
-        auto digits = decimal_integer(suffix);
-        if (digits > 10000) Rcpp::stop("Scientific-notation exponents must be between -10000 and 10000.");
-        exponent = digits.convert_to<int>();
-        if (down) exponent = -exponent;
-    }
-    std::size_t dot = text.find('.');
-    if (dot != std::string::npos) {
-        exponent -= static_cast<long long>(text.size() - dot - 1);
-        text.erase(dot, 1);
-    }
-    Integer mantissa = decimal_integer(text);
-    if (mantissa == 0) return Rational(0);
-    if (negative) Rcpp::stop("Resolutions cannot be negative.");
-    auto magnitude = static_cast<unsigned long long>(std::abs(exponent));
-    if (magnitude > std::numeric_limits<unsigned>::max()) Rcpp::stop("Decimal exponent is too large.");
-    Integer power = boost::multiprecision::pow(Integer(10), static_cast<unsigned>(magnitude));
-    if (exponent >= 0) return Rational(mantissa * power);
-    return Rational(mantissa, power);
-}
-
-std::optional<Rational> upper_limit(const std::string& text) {
-    if (text == "Inf") return std::nullopt;
-    return resolution(text);
-}
-
-std::vector<Rational> interior_splits(Rcpp::CharacterVector points,
-                                      const std::optional<Rational>& limit) {
-    std::set<Rational> interior;
-    for (R_xlen_t i = 0; i < points.size(); ++i) {
-        if (Rcpp::CharacterVector::is_na(points[i])) Rcpp::stop("Split points cannot be missing.");
-        Rational value = resolution(Rcpp::as<std::string>(points[i]));
-        if (value > 0 && (!limit || value < *limit)) interior.insert(std::move(value));
-    }
-    return {interior.begin(), interior.end()};
-}
-
 Network build_graph(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type,
                     Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Integer& total) {
-    std::vector<Rational> fractions;
-    Integer scale = 1;
-    for (R_xlen_t t = 0; t < values.size(); ++t) {
-        Rational w;
-        if (k) {
-            Integer s = static_cast<int>(overlap[t]);
-            w = Rational(s, Integer(2) * k - s);
-        } else {
-            w = Rational(static_cast<double>(values[t]));
-        }
-        fractions.push_back(w);
-        scale = boost::multiprecision::lcm(scale, denominator(w));
-    }
-    std::vector<Integer> weights;
-    for (const auto& w : fractions) weights.push_back(numerator(w) * (scale / denominator(w)));
+    const auto encoding = encode_weights(values, overlap, k);
     Network graph(n);
     for (R_xlen_t idx = 0; idx < i.size(); ++idx) {
         int u = i[idx] - 1, v = j[idx] - 1;
-        const Integer& w = weights[type[idx] - 1];
+        const Integer& w = encoding.weights[type[idx] - 1];
         graph.add_edge(u, v, w);
         graph.volume[u] += w;
         graph.volume[v] += w;
@@ -386,23 +289,6 @@ Network build_graph(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::I
     }
     return graph;
 }
-
-using PartitionIndex = std::map<Labels, int>;
-
-std::vector<Labels> take_partitions(PartitionIndex& index) {
-    std::vector<Labels> out(index.size());
-    while (!index.empty()) {
-        auto node = index.extract(index.begin());
-        out[node.mapped() - 1] = std::move(node.key());
-    }
-    return out;
-}
-
-struct IntervalData {
-    std::vector<Labels> partitions;
-    std::vector<Integer> numerators;
-    std::vector<Segment> segments;
-};
 
 IntervalData scan_interval(const Network& graph, const Integer& total, Rational start,
                            const std::optional<Rational>& limit, bool include_upper) {
@@ -466,34 +352,23 @@ IntervalData scan_interval(const Network& graph, const Integer& total, Rational 
     return block;
 }
 
-IntervalData merge_intervals(std::vector<IntervalData> blocks) {
-    if (blocks.size() == 1) return std::move(blocks.front());
-    IntervalData result;
-    PartitionIndex index;
-    for (auto& block : blocks) {
-        std::vector<int> ids;
-        ids.reserve(block.partitions.size());
-        // Each block and its partitions arrive in ascending first-appearance order,
-        // regardless of the order in which individual workers completed.
-        for (std::size_t i = 0; i < block.partitions.size(); ++i) {
-            auto entry = index.try_emplace(std::move(block.partitions[i]), static_cast<int>(index.size()) + 1);
-            ids.push_back(entry.first->second);
-            if (entry.second) result.numerators.push_back(std::move(block.numerators[i]));
-        }
-        for (const auto& s : block.segments) {
-            append(result.segments, ids[s.id - 1], s.lower, s.upper, s.left_closed, s.right_closed);
-        }
-        block = IntervalData{};
-    }
-    result.partitions = take_partitions(index);
-    return result;
+#include "structural.h"
+#include "cluster_cap.h"
+
+IntervalData scan_parallel(const StructuralPlan& plan, const std::vector<Rational>& starts,
+                           const std::optional<Rational>& limit, bool include_upper,
+                           int workers, int max_clusters) {
+    auto blocks = map_intervals(starts.size(), workers, [&](std::size_t idx) {
+        const bool last = idx + 1 == starts.size();
+        auto end = last ? limit : std::optional<Rational>(starts[idx + 1]);
+        return eligible_partitions(plan.scan(starts[idx], end, last && include_upper), max_clusters);
+    });
+    return merge_intervals(std::move(blocks));
 }
 
-#include "structural.h"
-
-Rcpp::List to_r(const IntervalData& path, const Integer& total) {
+Rcpp::List to_r(const IntervalData& path, const Integer& total, int n) {
     const std::size_t count = path.partitions.size();
-    Rcpp::IntegerMatrix membership(path.partitions.front().size(), count);
+    Rcpp::IntegerMatrix membership(n, count);
     for (std::size_t idx = 0; idx < count; ++idx) {
         Rcpp::checkUserInterrupt();
         const auto& labels = path.partitions[idx];
@@ -502,7 +377,7 @@ Rcpp::List to_r(const IntervalData& path, const Integer& total) {
     Rcpp::CharacterVector exact(count, NA_STRING);
     Rcpp::NumericVector modularity(count, NA_REAL);
     Rcpp::LogicalVector is_best(count, NA_LOGICAL);
-    if (total > 0) {
+    if (total > 0 && count != 0) {
         Integer den = total * total;
         Integer maximum = *std::max_element(path.numerators.begin(), path.numerators.end());
         for (std::size_t idx = 0; idx < count; ++idx) {
@@ -512,29 +387,15 @@ Rcpp::List to_r(const IntervalData& path, const Integer& total) {
             is_best[idx] = path.numerators[idx] == maximum;
         }
     }
-    const auto& segments = path.segments;
-    Rcpp::IntegerVector partition(segments.size());
-    Rcpp::CharacterVector lower(segments.size()), upper(segments.size());
-    Rcpp::LogicalVector left_closed(segments.size()), right_closed(segments.size());
-    for (std::size_t row = 0; row < segments.size(); ++row) {
-        const auto& s = segments[row];
-        partition[row] = s.id;
-        lower[row] = s.lower;
-        upper[row] = s.upper;
-        left_closed[row] = s.left_closed;
-        right_closed[row] = s.right_closed;
-    }
     return Rcpp::List::create(
         Rcpp::_["membership"] = membership,
         Rcpp::_["scores"] = Rcpp::DataFrame::create(
             Rcpp::_["modularity"] = modularity, Rcpp::_["modularity_exact"] = exact,
             Rcpp::_["is_max"] = is_best),
-        Rcpp::_["recommendation"] = recommend(segments, is_best),
-        Rcpp::_["intervals"] = Rcpp::DataFrame::create(
-            Rcpp::_["partition"] = partition, Rcpp::_["lower"] = lower,
-            Rcpp::_["upper"] = upper, Rcpp::_["lower_closed"] = left_closed,
-            Rcpp::_["upper_closed"] = right_closed));
+        Rcpp::_["recommendation"] = recommend(path.segments, is_best),
+        Rcpp::_["intervals"] = interval_frame(path.segments));
 }
+#include "seurat_output.h"
 } // namespace
 
 // [[Rcpp::export(rng = false)]]
@@ -560,7 +421,7 @@ Rcpp::List enumerate_interval_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVec
     Integer total = 0;
     auto graph = build_graph(n, i, j, type, values, overlap, k, total);
     const StructuralPlan plan(graph, total);
-    Rcpp::List result = to_r(plan.scan(start, limit, include_upper), total);
+    Rcpp::List result = to_r(plan.scan(start, limit, include_upper), total, n);
     result["search_plan"] = plan.metadata();
     return result;
 }
@@ -577,13 +438,53 @@ Rcpp::List enumerate_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVec
     Integer total = 0;
     auto graph = build_graph(n, i, j, type, values, overlap, k, total);
     const StructuralPlan plan(graph, total);
-    auto blocks = map_intervals(starts.size(), workers, [&](std::size_t idx) {
-        bool last = idx + 1 == starts.size();
-        auto end = last ? limit : std::optional<Rational>(starts[idx + 1]);
-        return plan.scan(starts[idx], end, last && limit.has_value());
-    });
-    Rcpp::List result = to_r(merge_intervals(std::move(blocks)), total);
+    Rcpp::List result = to_r(scan_parallel(plan, starts, limit, limit.has_value(), workers, 0), total, n);
     result["search_plan"] = plan.metadata();
+    return result;
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List enumerate_capped_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
+                                         Rcpp::IntegerVector type, Rcpp::NumericVector values,
+                                         Rcpp::NumericVector overlap, int k,
+                                         Rcpp::CharacterVector split_points, std::string r_max,
+                                         int workers, int max_clusters) {
+    if (workers < 1) Rcpp::stop("workers must be a positive integer.");
+    if (max_clusters < 0) Rcpp::stop("max_clusters must be nonnegative.");
+    const auto requested = upper_limit(r_max);
+    const int cap = max_clusters >= n ? 0 : max_clusters;
+    Integer total = 0;
+    auto graph = build_graph(n, i, j, type, values, overlap, k, total);
+    auto bound = edge_cluster_bound(graph, total, cap);
+    const StructuralPlan plan(graph, total);
+    auto meta = plan.metadata();
+    bool impossible = cap && Rcpp::as<int>(meta["n_components"]) > cap;
+    if (impossible) {
+        // Cells from different connected components never share a group.
+        bound = Rational(0);
+    } else if (cap) {
+        const Rational singleton_tail(Rcpp::as<std::string>(meta["singleton_tail_start"]));
+        if (!bound || singleton_tail < *bound) bound = singleton_tail;
+    }
+    const bool cut = bound && (!requested || *bound <= *requested);
+    const auto limit = cut ? bound : requested;
+    const bool include_upper = !cut && requested.has_value();
+    auto starts = interior_splits(split_points, limit);
+    Rcpp::CharacterVector actual_splits(starts.size());
+    for (std::size_t idx = 0; idx < starts.size(); ++idx) actual_splits[idx] = starts[idx].str();
+    starts.insert(starts.begin(), Rational(0));
+    int used = impossible ? 0 : std::min(static_cast<std::size_t>(workers), starts.size());
+    IntervalData path;
+    if (!impossible) path = scan_parallel(plan, starts, limit, include_upper, used, cap);
+    Rcpp::List result = to_r(path, total, n);
+    meta["cluster_bound"] = bound ? bound->str() : std::string("Inf");
+    Rcpp::CharacterVector scanned(1, NA_STRING);
+    if (!impossible) scanned[0] = limit ? limit->str() : std::string("Inf");
+    meta["scan_r_max"] = scanned;
+    meta["scan_upper_closed"] = include_upper;
+    meta["scan_split_points"] = actual_splits;
+    meta["effective_workers"] = used;
+    result["search_plan"] = meta;
     return result;
 }
 
@@ -592,4 +493,62 @@ Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector 
                               Rcpp::IntegerVector type, Rcpp::NumericVector values,
                               Rcpp::NumericVector overlap, int k) {
     return enumerate_interval_cpp(n, i, j, type, values, overlap, k, "0", "Inf", false);
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List seurat_results_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j,
+                              Rcpp::IntegerVector type, Rcpp::NumericVector values,
+                              Rcpp::NumericVector overlap, int k, Rcpp::IntegerMatrix raw,
+                              Rcpp::DataFrame intervals, bool group_singletons, int cap,
+                              Rcpp::CharacterVector points, std::string r_max, int fxn,
+                              Rcpp::Function sample_tie) {
+    Integer total = 0;
+    auto graph = build_graph(n, i, j, type, values, overlap, k, total);
+    SeuratQueries queries(points, intervals, n, upper_limit(r_max), fxn);
+    std::map<int, int> tie_cache;
+    PartitionIndex unique;
+    IntervalData result;
+    std::vector<int> final_ids(raw.ncol(), 0);
+    for (int col = 0; col < raw.ncol(); ++col) {
+        Rcpp::checkUserInterrupt();
+        Labels labels(n);
+        for (int u = 0; u < n; ++u) labels[u] = raw(u, col) - 1;
+        auto native = grouped_seurat_labels(std::move(labels), graph, group_singletons,
+                                            sample_tie, tie_cache);
+        Labels canonical(n), map(n + 1, -1);
+        int groups = 0;
+        for (int u = 0; u < n; ++u) {
+            int& label = map[native[u]];
+            if (label < 0) label = groups++;
+            canonical[u] = label;
+        }
+        if (!cap || groups <= cap) {
+            auto item = unique.try_emplace(std::move(canonical), static_cast<int>(unique.size()) + 1);
+            final_ids[col] = item.first->second;
+            if (item.second) result.numerators.push_back(classic_score(graph, item.first->first, total));
+        }
+        auto found = queries.columns.find(col + 1);
+        if (found != queries.columns.end()) {
+            for (int q : found->second) {
+                if (final_ids[col] == 0) { queries.status[q] = "filtered_max_clusters"; continue; }
+                queries.final[q] = final_ids[col];
+                queries.status[q] = "ok";
+                for (int u = 0; u < n; ++u) queries.idents(u, q) = native[u];
+            }
+        }
+    }
+    result.partitions = take_partitions(unique);
+    Rcpp::IntegerVector ids = intervals["partition"];
+    Rcpp::CharacterVector lo = intervals["lower"], hi = intervals["upper"];
+    Rcpp::LogicalVector lc = intervals["lower_closed"], hc = intervals["upper_closed"];
+    for (R_xlen_t s = 0; s < ids.size(); ++s) {
+        int id = final_ids[ids[s] - 1];
+        if (id) append(result.segments, id, Rcpp::as<std::string>(lo[s]), Rcpp::as<std::string>(hi[s]), lc[s], hc[s]);
+    }
+    auto answer = to_r(result, total, n);
+    answer["queries"] = Rcpp::DataFrame::create(
+        Rcpp::_["resolution"] = queries.text, Rcpp::_["status"] = queries.status,
+        Rcpp::_["raw_partition"] = queries.raw, Rcpp::_["partition"] = queries.final);
+    answer["query_idents"] = queries.idents;
+    return answer;
 }

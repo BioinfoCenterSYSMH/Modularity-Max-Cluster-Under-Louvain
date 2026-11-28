@@ -1,26 +1,27 @@
 Package: SUNLouvainPath
 Type: Package
 Title: MML Exact Enumeration of Deterministic Louvain Partitions on Seurat Graphs
-Version: 0.3.1.9001
+Version: 0.3.1.9004
 Authors@R: c(
     person("Junbo", "Wang", role = c("aut", "cre"),
            email = "99457639+SYSUWangJunbo@users.noreply.github.com",
            comment = "王俊博"),
     person("Jianyou", "Liao", role = "aut", comment = "廖建友"),
     person("GPT-6.2 Astra", role = "ctb", comment = "Development assistance"))
-Description: Follows exact comparisons in a deterministic multilevel Louvain
-    algorithm across the requested nonnegative resolution range. Detects
-    connected components, reuses certified decisions at adjacent resolutions,
-    searches disjoint intervals in parallel and stores distinct partitions
-    and their resolution intervals in a Seurat object's tools slot. Ranks the
-    final partitions by classical Newman-Girvan modularity and reports
-    the earliest resolution attaining its maximum when a minimum exists.
+Description: Enumerates the distinct partitions produced as the resolution
+    varies on a fixed graph. The Simple engine uses a deterministic visit
+    order and can prune the resolution range using a cluster count bound.
+    The Seurat engine tracks exact-arithmetic versions of the two Louvain
+    algorithms in 'Seurat' 5.5, including comparisons between random starts
+    at a fixed seed. Both engines can search disjoint intervals in parallel
+    and store the retained partitions, resolution intervals and classical
+    Newman-Girvan modularity scores in a Seurat object's tools slot.
 License: GPL-3
 URL: https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain
 BugReports: https://github.com/BioinfoCenterSYSMH/Modularity-Max-Cluster-Under-Louvain/issues
 Encoding: UTF-8
 Depends: R (>= 4.2.0)
-Imports: Matrix, parallelly, Rcpp, SeuratObject (>= 4.1.0)
+Imports: Matrix, parallelly, Rcpp, SeuratObject (>= 4.1.0), withr (>= 2.5.1)
 LinkingTo: BH, Rcpp
 Suggests: Seurat
 SystemRequirements: C++17

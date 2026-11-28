@@ -9,7 +9,8 @@ VerifyLouvainExample(dataset = c("ten_cells", "hesc"))
 differentiation dataset from GEO accession GSE85066.}
 }
 \description{Reconstructs a stored, cell-ordered Jaccard shared-nearest-neighbor
-graph and calls \code{\link{EnumerateLouvain}} on a new Seurat object. Checks
+graph and calls \code{\link{EnumerateLouvain}} with \code{max_clusters = Inf}
+on a new Seurat object to reproduce the full reference path. Checks
 every partition, exact interval, exact modularity score, maximum flag and
 recommended resolution against reference results. Also computes the winning
 partition's modularity directly from the edges. For HESC, checks agreement

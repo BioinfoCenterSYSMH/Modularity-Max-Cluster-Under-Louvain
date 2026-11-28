@@ -59,6 +59,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// enumerate_capped_parallel_cpp
+Rcpp::List enumerate_capped_parallel_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Rcpp::CharacterVector split_points, std::string r_max, int workers, int max_clusters);
+RcppExport SEXP _SUNLouvainPath_enumerate_capped_parallel_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP, SEXP split_pointsSEXP, SEXP r_maxSEXP, SEXP workersSEXP, SEXP max_clustersSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type overlap(overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type split_points(split_pointsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type r_max(r_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type workers(workersSEXP);
+    Rcpp::traits::input_parameter< int >::type max_clusters(max_clustersSEXP);
+    rcpp_result_gen = Rcpp::wrap(enumerate_capped_parallel_cpp(n, i, j, type, values, overlap, k, split_points, r_max, workers, max_clusters));
+    return rcpp_result_gen;
+END_RCPP
+}
 // enumerate_path_cpp
 Rcpp::List enumerate_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k);
 RcppExport SEXP _SUNLouvainPath_enumerate_path_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP) {
@@ -75,12 +95,63 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// seurat_results_cpp
+Rcpp::List seurat_results_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Rcpp::IntegerMatrix raw, Rcpp::DataFrame intervals, bool group_singletons, int cap, Rcpp::CharacterVector points, std::string r_max, int fxn, Rcpp::Function sample_tie);
+RcppExport SEXP _SUNLouvainPath_seurat_results_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP, SEXP rawSEXP, SEXP intervalsSEXP, SEXP group_singletonsSEXP, SEXP capSEXP, SEXP pointsSEXP, SEXP r_maxSEXP, SEXP fxnSEXP, SEXP sample_tieSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type overlap(overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type raw(rawSEXP);
+    Rcpp::traits::input_parameter< Rcpp::DataFrame >::type intervals(intervalsSEXP);
+    Rcpp::traits::input_parameter< bool >::type group_singletons(group_singletonsSEXP);
+    Rcpp::traits::input_parameter< int >::type cap(capSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type points(pointsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type r_max(r_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type fxn(fxnSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Function >::type sample_tie(sample_tieSEXP);
+    rcpp_result_gen = Rcpp::wrap(seurat_results_cpp(n, i, j, type, values, overlap, k, raw, intervals, group_singletons, cap, points, r_max, fxn, sample_tie));
+    return rcpp_result_gen;
+END_RCPP
+}
+// seurat_path_cpp
+Rcpp::List seurat_path_cpp(int n, Rcpp::IntegerVector i, Rcpp::IntegerVector j, Rcpp::IntegerVector type, Rcpp::NumericVector values, Rcpp::NumericVector overlap, int k, Rcpp::CharacterVector split_points, std::string r_max, int workers, int algorithm, int modularity_fxn, int n_start, int n_iter, int random_seed);
+RcppExport SEXP _SUNLouvainPath_seurat_path_cpp(SEXP nSEXP, SEXP iSEXP, SEXP jSEXP, SEXP typeSEXP, SEXP valuesSEXP, SEXP overlapSEXP, SEXP kSEXP, SEXP split_pointsSEXP, SEXP r_maxSEXP, SEXP workersSEXP, SEXP algorithmSEXP, SEXP modularity_fxnSEXP, SEXP n_startSEXP, SEXP n_iterSEXP, SEXP random_seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type overlap(overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type split_points(split_pointsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type r_max(r_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type workers(workersSEXP);
+    Rcpp::traits::input_parameter< int >::type algorithm(algorithmSEXP);
+    Rcpp::traits::input_parameter< int >::type modularity_fxn(modularity_fxnSEXP);
+    Rcpp::traits::input_parameter< int >::type n_start(n_startSEXP);
+    Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< int >::type random_seed(random_seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(seurat_path_cpp(n, i, j, type, values, overlap, k, split_points, r_max, workers, algorithm, modularity_fxn, n_start, n_iter, random_seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_SUNLouvainPath_resolution_ranges_cpp", (DL_FUNC) &_SUNLouvainPath_resolution_ranges_cpp, 2},
     {"_SUNLouvainPath_enumerate_interval_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_interval_cpp, 10},
     {"_SUNLouvainPath_enumerate_parallel_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_parallel_cpp, 10},
+    {"_SUNLouvainPath_enumerate_capped_parallel_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_capped_parallel_cpp, 11},
     {"_SUNLouvainPath_enumerate_path_cpp", (DL_FUNC) &_SUNLouvainPath_enumerate_path_cpp, 7},
+    {"_SUNLouvainPath_seurat_results_cpp", (DL_FUNC) &_SUNLouvainPath_seurat_results_cpp, 15},
+    {"_SUNLouvainPath_seurat_path_cpp", (DL_FUNC) &_SUNLouvainPath_seurat_path_cpp, 15},
     {NULL, NULL, 0}
 };
 

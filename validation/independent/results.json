@@ -1,0 +1,1 @@
+{"paths": 9, "probes": 3485, "by_case": {"cycle_seed_0": 14, "cycle_seed_4": 14, "empty_stack": 56, "original": 1120, "refined": 1120, "iterated": 1120, "restart_once": 18, "restart_twice": 18, "alternative_modularity": 5}}

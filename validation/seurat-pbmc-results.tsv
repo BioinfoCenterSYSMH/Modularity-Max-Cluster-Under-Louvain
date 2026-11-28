@@ -1,0 +1,2 @@
+trial	cells	edges	r_max	native_queries	native_matches	ordered_optimizers	optimizer_partitions	ordered_intervals	exact_point_runs	right_limit_runs	elapsed_seconds
+001	50	1225	5	501	501	99	63	102	2437	2486	11.35

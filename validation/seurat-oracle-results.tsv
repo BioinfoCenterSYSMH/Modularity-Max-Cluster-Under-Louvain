@@ -1,0 +1,15 @@
+case	cells	algorithm	modularity_fxn	raw_intervals	exact_probes	all_partition_line_crossings	native_probes	native_ranked_differences
+complete_a1_m1	5	1	1	5	402	True	9	0
+complete_a1_m2	5	1	2	2	35	True	6	0
+complete_a2_m1	5	2	1	5	402	True	9	0
+complete_a2_m2	5	2	2	2	35	True	6	0
+start_switch	7	1	1	9	22	False	9	3
+rounding	6	1	1	8	20	False	9	1
+dyadic_rounding	2	1	1	2	10	False	9	1
+edgeless	4	1	1	1	8	False	0	0
+disconnected	6	1	1	4	14	False	9	0
+clique	4	1	1	2	10	True	9	0
+refinement_1	10	1	1	14	34	False	9	0
+refinement_2	10	2	1	15	36	False	9	0
+pbmc_a1	7	1	1	7	20	False	9	0
+pbmc_a2	7	2	2	7	19	False	6	0
