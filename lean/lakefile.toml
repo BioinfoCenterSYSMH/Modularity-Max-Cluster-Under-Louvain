@@ -9,4 +9,4 @@ rev = "v4.19.0"
 
 [[lean_lib]]
 name = "LouvainProof"
-roots = ["Path", "Enumeration", "Graph", "Jaccard", "LocalGain", "Completeness", "RawJaccard", "BreakpointCount", "VisitCount", "CandidateCount", "LinearMenu", "DenseMenu", "Decisions", "MeteredTables", "MeteredDecision", "MeteredControl", "MeteredLevels", "MeteredScan", "MeteredScores", "JaccardProgram", "ArithmeticBound", "ScoredPath"]
+roots = ["Path", "Enumeration", "Graph", "Jaccard", "LocalGain", "Completeness", "RawJaccard", "BreakpointCount", "VisitCount", "CandidateCount", "LinearMenu", "DenseMenu", "Decisions", "MeteredTables", "MeteredDecision", "MeteredControl", "MeteredLevels", "MeteredScan", "MeteredScores", "JaccardProgram", "ArithmeticBound", "ScoredPath", "SeuratFuel", "SeuratLabels", "SeuratLocal", "SeuratRoots", "SeuratOrder", "SeuratFlow", "SeuratCost", "SeuratJaccard", "SeuratStackFlow", "SeuratLevelValidity"]
