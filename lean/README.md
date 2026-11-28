@@ -46,6 +46,15 @@ theorem Louvain.Metered.arithmetic_n14 (k : ℕ) (hk : 0 < k) :
 
 固定近邻数后，$O(n^{14})$ 是上述数学算法的保守最坏情形上界。Lean 验证了算术模型中的运算次数。实际 R/C++ 使用稀疏结构，其结果通过示例单独检验。位运算复杂度的完整形式化仍是独立问题。
 
+## Seurat Louvain with exact arithmetic
+
+The Seurat extension models the weighted-modularity optimizer in Seurat 5.5 (`modularity.fxn = 1`). It uses the seeded Java permutation stream, the unused-label stack, coarsening, optional multilevel refinement (`algorithm = 2`), the outer iteration limit, and the original order of the restarts. A tied restart score keeps the incumbent. The model covers the raw optimizer on the original off-diagonal graph. The double-precision Seurat executable and its `FindClusters` singleton postprocessing have separate semantics. [Seurat local moving and refinement](https://github.com/satijalab/seurat/blob/v5.5.0/src/ModularityOptimizer.cpp#L482-L635) · [Seurat restart selection](https://github.com/satijalab/seurat/blob/v5.5.0/src/RModularityOptimizer.cpp#L99-L141)
+
+- [`enumerate_exact_flow`](SeuratFlow.lean) gives soundness and completeness over all real $r \ge 0$. Each returned partition is attained at some resolution and every attained partition is returned. The scan includes boundary points and decisions immediately to their right, including changes in the winning restart. [Original Jaccard score scaling](SeuratJaccard.lean)
+- [`visit_drops`](SeuratLocal.lean) proves strict progress for zero-gain moves as well as positive gains. The lexicographic potential prefers higher modularity, then more occupied labels, then a lower sum of labels over original cells. [Unused-label stack invariants](SeuratStackFlow.lean) · [Uncapped termination and valid contraction fuel](SeuratLevelValidity.lean)
+- [`seurat_exact_polynomial`](SeuratCost.lean) bounds the total number of candidate entries across both point and right-limit evaluations by $C(k,R,I)(n+1)^{18}$ for fixed positive $k$, number of restarts $R$, and outer iteration limit $I$. [Breakpoint and output bounds](SeuratRoots.lean) give $O((n+1)^6)$ scan boundaries and distinct outputs. With fixed $k$, score components and rational boundary numerators and denominators have $O(\log(n+1))$ bits. Evaluating a candidate on a dense graph, maintaining the finite cut set and deduplicating outputs each use polynomial work. The formal meter counts candidates and visits. The exponent 18 refers to the candidate meter, while a machine-level bit-cost bound and runtime of the R/C++ package are separate questions.
+- [Java permutation stream](SeuratOrder.lean) proves the generated order is a permutation and rejection sampling terminates for positive bounds below $2^{31}$. The [four-cell regression](SeuratExample.lean) checks seed-dependent choices and the complete seed-4 path.
+
 ## Reproduce the check
 
 With the Lean toolchain manager `elan` installed, run these commands from this directory (`lean/`). The project pins Lean and mathlib to version 4.19.0.
@@ -57,6 +66,8 @@ lake build
 lake env lean -DwarningAsError=true RawJaccard.lean
 lake env lean -DwarningAsError=true ArithmeticBound.lean
 lake env lean -DwarningAsError=true ScoredPath.lean
+lake env lean -DwarningAsError=true SeuratCost.lean
+lake env lean -DwarningAsError=true --run SeuratExample.lean
 ```
 
 The three source checks print the axiom dependencies of the main completeness, uniqueness, arithmetic-bound and scoring results. They use only `propext`, `Classical.choice` and `Quot.sound`.
